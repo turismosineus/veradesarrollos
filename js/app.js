@@ -108,6 +108,8 @@ function bind(){
   document.querySelectorAll('[data-eedit]').forEach(x => x.addEventListener('click', () => { S.editId = x.dataset.eedit; ui.pendingFile = null; S.modal = 'new-exp'; render(); }));
   document.querySelectorAll('[data-ledit]').forEach(x => x.addEventListener('click', () => { S.editId = x.dataset.ledit; S.modal = 'new-liquidacion'; render(); }));
   document.querySelectorAll('[data-iedit]').forEach(x => x.addEventListener('click', () => { S.editId = x.dataset.iedit; S.modal = 'new-investor'; render(); }));
+  document.querySelectorAll('[data-bdedit]').forEach(x => x.addEventListener('click', () => { S.editId = x.dataset.bdedit; ui.pendingFile = null; S.modal = 'new-budget'; render(); }));
+  el('edit-prov')?.addEventListener('click', () => { S.editId = S.prov; S.modal = 'new-prov'; render(); });
 
   // ── Cerrar modal ──
   document.querySelectorAll('#close-modal').forEach(x => x.addEventListener('click', closeModal));
@@ -130,7 +132,9 @@ function bind(){
   // ── Guardar: proveedor ──
   el('save-prov')?.addEventListener('click', () => {
     const name = v('nv-name'), rubro = v('nv-rubro'); if(!name || !rubro){ toast('Completá empresa y rubro'); return; }
-    const obj = { name, rubro, kind:v('nv-kind')||'materiales', contact:v('nv-contact'), phone:v('nv-phone'), email:v('nv-email') }; S.modal = null; run(() => db.addProvider(obj), 'Proveedor creado');
+    const obj = { name, rubro, kind:v('nv-kind')||'materiales', contact:v('nv-contact'), phone:v('nv-phone'), email:v('nv-email') };
+    const editId = S.editId; S.modal = null; S.editId = null;
+    if(editId) run(() => db.updateProvider(editId, obj), 'Proveedor actualizado'); else run(() => db.addProvider(obj), 'Proveedor creado');
   });
 
   // ── Guardar: orden ──
@@ -198,9 +202,12 @@ function bind(){
   el('save-budget')?.addEventListener('click', () => {
     const concept = v('bd-concept'); if(!concept){ toast('Falta el concepto'); return; }
     const amount = nv('bd-amount'); if(!amount){ toast('Ingresá el monto'); return; }
-    const f = ui.pendingFile, prov = S.prov;
-    const meta = { concept, name:f ? f.name : concept, amount, project:v('bd-project'), date:v('bd-date')||today(), note:v('bd-note') };
-    ui.pendingFile = null; S.modal = null; run(() => db.addBudget(prov, meta, f), 'Presupuesto cargado');
+    const f = ui.pendingFile, prov = S.prov, editId = S.editId;
+    const pv = D.providers.find(p => p.id === prov); const cur = editId ? ((pv&&pv.budgets)||[]).find(b => b.id == editId) : null;
+    const meta = { concept, name:f ? f.name : (cur ? cur.name : concept), amount, project:v('bd-project'), date:v('bd-date')||today(), note:v('bd-note') };
+    ui.pendingFile = null; S.modal = null; S.editId = null;
+    if(cur) run(() => db.updateBudget(cur.id, { ...meta, mime:cur.mime }, f, cur.fileId), 'Presupuesto actualizado');
+    else run(() => db.addBudget(prov, meta, f), 'Presupuesto cargado');
   });
   document.querySelectorAll('[data-bdapprove]').forEach(x => x.addEventListener('click', () => run(() => db.setBudgetStatus(x.dataset.bdapprove, 'aprobado'), 'Presupuesto aprobado')));
   document.querySelectorAll('[data-bdreject]').forEach(x => x.addEventListener('click', () => run(() => db.setBudgetStatus(x.dataset.bdreject, 'rechazado'), 'Presupuesto rechazado')));

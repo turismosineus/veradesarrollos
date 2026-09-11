@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Etapa 3
+-- Vera Desarrollos — Etapa 3
 -- Liquidaciones (mano de obra) + factura en cada gasto.
 -- Pegá TODO esto en el SQL Editor de Supabase y ejecutá.
 -- ============================================================

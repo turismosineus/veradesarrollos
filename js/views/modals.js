@@ -31,14 +31,17 @@ export function rModal(){
       'save-proj', ed?'Guardar cambios':'Crear proyecto');
   }
 
-  if(m==='new-prov') return shell('Nuevo proveedor', 'Estos datos se usan en presupuestos, órdenes y comprobantes', `
-      <div class="fl"><label>Nombre / Empresa <span class="req">*</span></label><input class="fi" id="nv-name" placeholder="Ej. Materiales del Sur SA, Juan Pérez (albañil), Arq. García"></div>
-      <div class="fl"><label>Tipo de proveedor <span class="req">*</span></label><select class="fi" id="nv-kind">${PROV_KINDS.map(k=>`<option>${k}</option>`).join('')}</select><div style="font-size:11px;color:#6b7280;margin-top:4px">Albañiles, electricistas, plomeros → <b>mano de obra</b>. Arquitectos, ingenieros, agrimensores → <b>profesional</b>.</div></div>
-      <div class="frow"><div class="fl"><label>Rubro <span class="req">*</span></label><input class="fi" id="nv-rubro" placeholder="Materiales, Electricidad..."></div>
-        <div class="fl"><label>Nombre de contacto</label><input class="fi" id="nv-contact" placeholder="Nombre y apellido"></div></div>
-      <div class="frow"><div class="fl"><label>Teléfono</label><input class="fi" id="nv-phone" placeholder="261-4000000"></div>
-        <div class="fl"><label>Email</label><input class="fi" id="nv-email" type="email" placeholder="ventas@empresa.com"></div></div>`,
-      'save-prov', 'Guardar proveedor');
+  if(m==='new-prov'){
+    const ed = S.editId ? D.providers.find(p=>p.id==S.editId) : null;
+    return shell(ed?'Editar proveedor':'Nuevo proveedor', 'Estos datos se usan en presupuestos, órdenes, liquidaciones y comprobantes', `
+      <div class="fl"><label>Nombre / Empresa <span class="req">*</span></label><input class="fi" id="nv-name" value="${ed?esc(ed.name):''}" placeholder="Ej. Materiales del Sur SA, Juan Pérez (albañil), Arq. García"></div>
+      <div class="fl"><label>Tipo de proveedor <span class="req">*</span></label><select class="fi" id="nv-kind">${PROV_KINDS.map(k=>`<option ${ed&&(ed.kind||'materiales')===k?'selected':''}>${k}</option>`).join('')}</select><div style="font-size:11px;color:#6b7280;margin-top:4px">Albañiles, electricistas, plomeros → <b>mano de obra</b>. Arquitectos, ingenieros, agrimensores → <b>profesional</b>.</div></div>
+      <div class="frow"><div class="fl"><label>Rubro <span class="req">*</span></label><input class="fi" id="nv-rubro" value="${ed?esc(ed.rubro||''):''}" placeholder="Materiales, Electricidad..."></div>
+        <div class="fl"><label>Nombre de contacto</label><input class="fi" id="nv-contact" value="${ed?esc(ed.contact||''):''}" placeholder="Nombre y apellido"></div></div>
+      <div class="frow"><div class="fl"><label>Teléfono</label><input class="fi" id="nv-phone" value="${ed?esc(ed.phone||''):''}" placeholder="261-4000000"></div>
+        <div class="fl"><label>Email</label><input class="fi" id="nv-email" type="email" value="${ed?esc(ed.email||''):''}" placeholder="ventas@empresa.com"></div></div>`,
+      'save-prov', ed?'Guardar cambios':'Guardar proveedor');
+  }
 
   if(m==='new-order'){
     const items = S.mi, total = items.reduce((a,i)=>a+(Number(i.qty)||0)*(Number(i.price)||0),0);
@@ -105,14 +108,15 @@ export function rModal(){
 
   if(m==='new-budget'){
     const prov = D.providers.find(p=>p.id===S.prov);
-    return shell('Cargar presupuesto', 'Presupuesto de '+esc(prov?prov.name:''), `
-      <div class="fl"><label>Concepto <span class="req">*</span></label><input class="fi" id="bd-concept" placeholder="Ej. Aberturas, Instalación eléctrica, Hierro..."><div style="font-size:11px;color:#6b7280;margin-top:4px">Usá el mismo concepto en distintos proveedores para poder compararlos.</div></div>
-      <div class="fl"><label>Archivo (opcional)</label>${drop('bd', 'Arrastrá el PDF o hacé click', '', false)}</div>
-      <div class="frow"><div class="fl"><label>Monto ($) <span class="req">*</span></label><input class="fi" id="bd-amount" type="number" placeholder="0"></div>
-        <div class="fl"><label>Proyecto</label><select class="fi" id="bd-project"><option value="">— Sin proyecto —</option>${projOptions()}</select></div></div>
-      <div class="frow"><div class="fl"><label>Fecha</label><input class="fi" id="bd-date" type="date" value="${today()}"></div>
-        <div class="fl"><label>Nota</label><input class="fi" id="bd-note" placeholder="Validez, condiciones, etc."></div></div>`,
-      'save-budget', 'Guardar presupuesto');
+    const ed = S.editId ? ((prov&&prov.budgets)||[]).find(b=>b.id==S.editId) : null;
+    return shell(ed?'Editar presupuesto':'Cargar presupuesto', 'Presupuesto de '+esc(prov?prov.name:''), `
+      <div class="fl"><label>Concepto <span class="req">*</span></label><input class="fi" id="bd-concept" value="${ed?esc(ed.concept||''):''}" placeholder="Ej. Aberturas, Instalación eléctrica, Hierro..."><div style="font-size:11px;color:#6b7280;margin-top:4px">Usá el mismo concepto en distintos proveedores para poder compararlos.</div></div>
+      <div class="fl"><label>Archivo ${ed&&ed.fileId?'(ya hay uno cargado — elegí otro solo si querés reemplazarlo)':'(opcional)'}</label>${drop('bd', 'Arrastrá el PDF o hacé click', '', false)}</div>
+      <div class="frow"><div class="fl"><label>Monto ($) <span class="req">*</span></label><input class="fi" id="bd-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
+        <div class="fl"><label>Proyecto</label><select class="fi" id="bd-project"><option value="">— Sin proyecto —</option>${projOptions(ed?ed.project:undefined)}</select></div></div>
+      <div class="frow"><div class="fl"><label>Fecha</label><input class="fi" id="bd-date" type="date" value="${ed?(ed.date||''):today()}"></div>
+        <div class="fl"><label>Nota</label><input class="fi" id="bd-note" value="${ed?esc(ed.note||''):''}" placeholder="Validez, condiciones, etc."></div></div>`,
+      'save-budget', ed?'Guardar cambios':'Guardar presupuesto');
   }
 
   if(m==='new-inv-doc') return shell('Subir documento', 'Contrato, recibo o comprobante de '+esc(S.inv||''), `

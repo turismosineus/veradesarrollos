@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Etapa 5: Presupuestos de proveedores
+-- Vera Desarrollos — Etapa 5: Presupuestos de proveedores
 -- Pegá TODO esto en el SQL Editor de Supabase y ejecutá.
 -- (Las fotos en actualizaciones, la proyección de inversores y el
 --  editar registros NO necesitan cambios en la base.)

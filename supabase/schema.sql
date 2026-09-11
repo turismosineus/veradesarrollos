@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Esquema de base de datos (Supabase)
+-- Vera Desarrollos — Esquema de base de datos (Supabase)
 -- Pegá TODO esto en el SQL Editor de tu proyecto de Supabase y ejecutá.
 -- Las reglas de acceso (RLS) las agregamos en un segundo paso, según el
 -- tipo de login que elijas (ver el chat).

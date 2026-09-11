@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Reglas de acceso (Etapa 2)
+-- Vera Desarrollos — Reglas de acceso (Etapa 2)
 -- Pegá TODO esto en el SQL Editor de Supabase y ejecutá.
 -- Sin esto, la app no puede leer ni escribir los datos.
 -- ============================================================

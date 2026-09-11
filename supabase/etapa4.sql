@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Etapa 4: Planos (categorías + revisiones)
+-- Vera Desarrollos — Etapa 4: Planos (categorías + revisiones)
 -- Pegá TODO esto en el SQL Editor de Supabase y ejecutá.
 -- ============================================================
 create table if not exists plans (

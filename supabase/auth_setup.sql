@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Auth y perfiles (Opción B: login real)
+-- Vera Desarrollos — Auth y perfiles (Opción B: login real)
 -- Pegá TODO esto en el SQL Editor de Supabase y ejecutá (después del schema.sql).
 -- ============================================================
 

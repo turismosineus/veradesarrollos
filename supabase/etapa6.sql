@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Etapa 6: 3D y multimedia + Cámaras
+-- Vera Desarrollos — Etapa 6: 3D y multimedia + Cámaras
 -- Pegá TODO esto en el SQL Editor de Supabase y ejecutá.
 -- ============================================================
 create table if not exists media (

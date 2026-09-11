@@ -1,4 +1,4 @@
-# Vera Construcciones — Sistema de Gestión
+# Vera Desarrollos — Sistema de Gestión
 
 App web de gestión de obra (proyectos, proveedores, comprobantes, inversores y finanzas).
 JavaScript puro, **sin paso de compilación** (módulos nativos del navegador). Datos y

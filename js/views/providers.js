@@ -79,14 +79,14 @@ export function rProvD(){
       :`<table><thead><tr><th>Concepto</th><th>Proyecto</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Archivo</th><th></th></tr></thead><tbody>
         ${buds.map(b=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}${b.note?`<div style="font-size:11px;color:var(--text3)">${esc(b.note)}</div>`:''}</td><td style="color:var(--text2)">${esc(b.project||'-')}</td><td style="font-weight:600;color:var(--orange)">${fmt(b.amount)}</td><td>${budgetBadge(b.status)}</td><td>${b.date||''}</td>
           <td>${b.fileId?`<button class="link-btn" data-rview="${b.fileId}" data-rname="${esc(b.name||'presupuesto')}"><i class="ti ti-eye"></i></button> <button class="link-btn" data-rdl="${b.fileId}" data-rname="${esc(b.name||'presupuesto')}"><i class="ti ti-download"></i></button>`:'<span style="color:var(--text3)">—</span>'}</td>
-          <td style="white-space:nowrap">${b.status!=='aprobado'?`<button class="link-btn" data-bdapprove="${b.id}" title="Aprobar"><i class="ti ti-check"></i></button> `:''}${b.status!=='rechazado'?`<button class="link-btn" data-bdreject="${b.id}" title="Rechazar" style="color:var(--red)"><i class="ti ti-x"></i></button> `:''}<button class="tbl-del" data-bddel="${b.id}" data-rfile="${b.fileId||''}"><i class="ti ti-trash"></i></button></td></tr>`).join('')}
+          <td style="white-space:nowrap"><button class="link-btn" data-bdedit="${b.id}" title="Editar"><i class="ti ti-edit"></i></button> ${b.status!=='aprobado'?`<button class="link-btn" data-bdapprove="${b.id}" title="Aprobar"><i class="ti ti-check"></i></button> `:''}${b.status!=='rechazado'?`<button class="link-btn" data-bdreject="${b.id}" title="Rechazar" style="color:var(--red)"><i class="ti ti-x"></i></button> `:''}<button class="tbl-del" data-bddel="${b.id}" data-rfile="${b.fileId||''}"><i class="ti ti-trash"></i></button></td></tr>`).join('')}
         </tbody></table>`}</div>`;
   }
   return `
   <div class="topbar">
     <button class="back-btn" id="back"><i class="ti ti-arrow-left"></i> Proveedores</button>
     <div><h1>${esc(p.name.toUpperCase())}</h1><div class="topbar-sub">${esc(p.rubro)} &nbsp;·&nbsp; ${esc(p.contact)}</div></div>
-    <div class="topbar-actions"><span class="badge bgr">${esc(p.kind||'materiales')}</span><span class="badge bb">${esc(p.rubro)}</span><button class="btn-del" data-delprov="${p.id}"><i class="ti ti-trash"></i></button></div>
+    <div class="topbar-actions"><span class="badge bgr">${esc(p.kind||'materiales')}</span><span class="badge bb">${esc(p.rubro)}</span><button class="btn-sec" id="edit-prov"><i class="ti ti-edit"></i> Editar</button><button class="btn-del" data-delprov="${p.id}"><i class="ti ti-trash"></i></button></div>
   </div>
   <div class="content"><div class="tabs">
     <button class="tab ${tab==='info'?'active':''}" data-tab="info"><i class="ti ti-info-circle"></i> Información</button>

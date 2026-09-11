@@ -1,5 +1,5 @@
 -- ============================================================
--- Vera Construcciones — Etapa 7: tipos de proveedor + liquidaciones ligadas a proveedor
+-- Vera Desarrollos — Etapa 7: tipos de proveedor + liquidaciones ligadas a proveedor
 -- Pegá TODO esto en el SQL Editor de Supabase y ejecutá.
 -- ============================================================
 alter table providers add column if not exists kind text default 'materiales';

@@ -76,6 +76,7 @@ export async function deleteProject(id, name){
 
 // ── Proveedores ──
 export async function addProvider(o){ const { error } = await supabase.from('providers').insert({ name:o.name, rubro:o.rubro, contact:o.contact, phone:o.phone, email:o.email, kind:o.kind||'materiales' }); if(error) throw error; }
+export async function updateProvider(id, o){ const { error } = await supabase.from('providers').update({ name:o.name, rubro:o.rubro, contact:o.contact, phone:o.phone, email:o.email, kind:o.kind||'materiales' }).eq('id', id); if(error) throw error; }
 export async function deleteProvider(id, filePaths){
   for(const p of (filePaths||[])) await removeFile(p);
   const { error } = await supabase.from('providers').delete().eq('id', id); if(error) throw error;
@@ -91,6 +92,13 @@ export async function addBudget(providerId, meta, file){
   if(file){ path = await uploadFile(file); mime = file.type; }
   const { error } = await supabase.from('budgets').insert({ provider_id:providerId, name:meta.name, concept:meta.concept, file_path:path, mime, amount:num(meta.amount), date:d(meta.date), project:d(meta.project), status:'pendiente', note:meta.note });
   if(error){ if(path) await removeFile(path); throw error; }
+}
+export async function updateBudget(id, o, file, oldPath){
+  let file_path = oldPath || null, mime = o.mime || null;
+  if(file){ file_path = await uploadFile(file); mime = file.type; }
+  const { error } = await supabase.from('budgets').update({ name:o.name, concept:o.concept, file_path, mime, amount:num(o.amount), date:d(o.date), project:d(o.project), note:o.note }).eq('id', id);
+  if(error){ if(file && file_path) await removeFile(file_path); throw error; }
+  if(file && oldPath) await removeFile(oldPath);
 }
 export async function setBudgetStatus(id, status){ const { error } = await supabase.from('budgets').update({ status }).eq('id', id); if(error) throw error; }
 export async function deleteBudget(id, filePath){ const { error } = await supabase.from('budgets').delete().eq('id', id); if(error) throw error; if(filePath) await removeFile(filePath); }

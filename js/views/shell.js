@@ -27,7 +27,7 @@ export function rApp(){
   const u = S.user, dir = isDirector();
   return `<div class="app">
     <div class="sidebar">
-      <div class="sb-logo"><div class="sb-brand">VERA <span>CONSTRUCCIONES</span></div><div class="sb-tagline">Sistema de gestión</div></div>
+      <div class="sb-logo"><div class="sb-brand">VERA <span>DESARROLLOS</span></div><div class="sb-tagline">Sistema de gestión</div></div>
       <div class="nav-section">
         <div class="nav-label">Módulos</div>
         <div class="nav-item ${['proyectos','proj-d'].includes(S.page)?'active':''}" data-nav="proyectos"><i class="ti ti-building"></i> Proyectos</div>
