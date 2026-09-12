@@ -5,5 +5,5 @@ export const OL = {pendiente:'Pendiente',aprobada:'Aprobada',entregada:'Entregad
 export const OB = {pendiente:'ba',aprobada:'bb',entregada:'bp',pagada:'bg'};
 export const EXP_CATS = ['materiales','equipos','electricidad','plomería','servicios','fletes','otros'];
 export const OFICIOS = ['albañil','electricista','plomero','arquitecto','pintor','gasista','herrero','ayudante','maquinista','otro'];
-export const PLAN_CATS = ['general / arquitectura','estructural','eléctrico','pluvial','sanitario','gas','detalles','otros'];
+export const PLAN_CATS = ['general / arquitectura','estructural','eléctrico','pluvial','sanitario','gas','aberturas','carpintería','detalles','otros'];
 export const PROV_KINDS = ['materiales','mano de obra','profesional','servicios / subcontrato','equipos / alquiler'];
