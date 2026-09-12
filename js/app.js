@@ -36,7 +36,8 @@ async function run(fn, okMsg){
   catch(e){ console.error(e); toast('Ocurrió un error. Revisá e intentá de nuevo.'); }
 }
 
-const byName = n => D.projects.find(x => x.name === n);
+// Dado el ID elegido en un select, devuelve {projectId, project(nombre)} (o nulos si no eligió).
+const pidOf = id => { const p = D.projects.find(x => x.id == id); return p ? { projectId:p.id, project:p.name } : { projectId:null, project:'' }; };
 const closeModal = () => { S.modal = null; S.editId = null; ui.pendingFile = null; ui.pendingFiles = []; render(); };
 
 // Zona de carga: click + arrastrar-y-soltar. multi=true guarda en ui.pendingFiles, si no en ui.pendingFile.
@@ -70,6 +71,8 @@ function bind(){
   el('logout')?.addEventListener('click', async () => { await signOut(); S.user = null; S.page = 'login'; D.projects = []; D.providers = []; D.expenses = []; D.liquidaciones = []; D.investments = []; D.investorDocs = []; render(); });
 
   // ── Navegación ──
+  el('mob-menu')?.addEventListener('click', () => document.querySelector('.app')?.classList.toggle('nav-open'));
+  el('sb-backdrop')?.addEventListener('click', () => document.querySelector('.app')?.classList.remove('nav-open'));
   document.querySelectorAll('[data-nav]').forEach(x => x.addEventListener('click', () => { S.page = x.dataset.nav; S.tab = x.dataset.nav === 'proveedores' ? 'info' : (x.dataset.nav === 'finanzas' ? 'liquidaciones' : 'estado'); render(); }));
   document.querySelectorAll('[data-tab]').forEach(x => x.addEventListener('click', () => { S.tab = x.dataset.tab; render(); }));
   document.querySelectorAll('[data-pfilter]').forEach(x => x.addEventListener('click', () => { S.provFilter = x.dataset.pfilter; render(); }));
@@ -124,7 +127,7 @@ function bind(){
   // ── Guardar: proyecto ──
   el('save-proj')?.addEventListener('click', () => {
     const name = v('np-name'), addr = v('np-addr'); if(!name || !addr){ toast('Completá nombre y dirección'); return; }
-    const base = { name, address:addr, status:v('np-status')||'planificacion', progress:Math.min(100,Math.max(0,nv('np-prog'))), startDate:v('np-start'), endDate:v('np-end'), salePrice:nv('np-sale'), budget:nv('np-budget'), spent:nv('np-spent'), description:v('np-desc') };
+    const base = { name, address:addr, status:v('np-status')||'planificacion', progress:Math.min(100,Math.max(0,nv('np-prog'))), startDate:v('np-start'), endDate:v('np-end'), salePrice:nv('np-sale'), budget:nv('np-budget'), description:v('np-desc') };
     if(S.modal === 'edit-proj'){ const cur = D.projects.find(x => x.id === S.proj) || {}; const id = S.proj; S.modal = null; run(() => db.updateProject(id, { ...base, updates:cur.updates||[], model3d:cur.model3d, streamUrl:cur.streamUrl }), 'Proyecto actualizado'); }
     else { S.modal = null; run(() => db.addProject({ ...base, updates:[], model3d:null, streamUrl:null }), 'Proyecto creado'); }
   });
@@ -141,14 +144,14 @@ function bind(){
   el('save-order')?.addEventListener('click', () => {
     const items = S.mi.filter(i => i.desc.trim()).map(i => { const qty = Number(i.qty)||0, price = Number(i.price)||0; return { desc:i.desc.trim(), qty, unit:i.unit, unitPrice:price, total:qty*price }; });
     if(!items.length){ toast('Agregá al menos un ítem con descripción'); return; }
-    const obj = { id:v('no-num')||nextOrderNo(), date:v('no-date')||today(), project:v('no-project'), items }, prov = S.prov; S.modal = null; run(() => db.addOrder(prov, obj), 'Orden creada');
+    const obj = { id:v('no-num')||nextOrderNo(), date:v('no-date')||today(), ...pidOf(v('no-project')), items }, prov = S.prov; S.modal = null; run(() => db.addOrder(prov, obj), 'Orden creada');
   });
 
   // ── Guardar: aporte (alta o edición) ──
   el('save-investor')?.addEventListener('click', () => {
     const name = v('ni-name'); if(!name){ toast('Falta el nombre del inversor'); return; }
     if(!nv('ni-amount')){ toast('Ingresá el monto'); return; }
-    const obj = { investor:name, project:v('ni-project'), amount:nv('ni-amount'), pct:nv('ni-pct'), date:v('ni-date')||today(), note:v('ni-note') };
+    const obj = { investor:name, ...pidOf(v('ni-project')), amount:nv('ni-amount'), pct:nv('ni-pct'), date:v('ni-date')||today(), note:v('ni-note') };
     const editId = S.editId; S.modal = null; S.editId = null;
     if(editId){ if(S.page === 'inv-d') S.inv = name; run(() => db.updateInvestment(editId, obj), 'Aporte actualizado'); }
     else run(() => db.addInvestment(obj), 'Aporte registrado');
@@ -158,40 +161,28 @@ function bind(){
   el('save-exp')?.addEventListener('click', () => {
     const concept = v('ne-concept'); if(!concept){ toast('Falta el concepto'); return; }
     const amount = nv('ne-amount'); if(!amount){ toast('Ingresá el monto'); return; }
-    const project = v('ne-project');
-    const obj = { concept, category:v('ne-cat')||'otros', amount, date:v('ne-date')||today(), provider:v('ne-provider')||'-', project };
+    const pv = D.providers.find(x => x.id == v('ne-provider'));
+    const obj = { concept, category:v('ne-cat')||'otros', amount, date:v('ne-date')||today(), providerId:pv?pv.id:null, provider:pv?pv.name:'-', ...pidOf(v('ne-project')) };
     const f = ui.pendingFile, cur = S.editId ? D.expenses.find(x => x.id == S.editId) : null;
     S.modal = null; S.editId = null; ui.pendingFile = null;
-    run(async () => {
-      if(cur){
-        await db.updateExpense(cur.id, { ...obj, mime:cur.mime }, f, cur.fileId);
-        if(cur.project === project){ const pr = byName(project); if(pr) await db.bumpProjectSpent(pr.id, (pr.spent||0) + (amount - cur.amount)); }
-        else { const o = byName(cur.project); if(o) await db.bumpProjectSpent(o.id, (o.spent||0) - cur.amount); const n = byName(project); if(n) await db.bumpProjectSpent(n.id, (n.spent||0) + amount); }
-      } else { await db.addExpense(obj, f); const pr = byName(project); if(pr) await db.bumpProjectSpent(pr.id, (pr.spent||0) + amount); }
-    }, cur ? 'Gasto actualizado' : 'Gasto registrado');
+    if(cur) run(() => db.updateExpense(cur.id, { ...obj, mime:cur.mime }, f, cur.fileId), 'Gasto actualizado');
+    else run(() => db.addExpense(obj, f), 'Gasto registrado');
   });
 
   // ── Guardar: liquidación (alta o edición) ──
   el('save-liq')?.addEventListener('click', () => {
     const pv = D.providers.find(x => x.id == v('nl-prov')); if(!pv){ toast('Elegí el proveedor / profesional que cobra'); return; }
     const amount = nv('nl-amount'); if(!amount){ toast('Ingresá el monto'); return; }
-    const project = v('nl-project');
-    const obj = { providerId:pv.id, worker:pv.name, trade:pv.rubro||pv.kind||'', amount, date:v('nl-date')||today(), project, note:v('nl-note') };
-    const cur = S.editId ? (D.liquidaciones||[]).find(x => x.id == S.editId) : null;
-    S.modal = null; S.editId = null;
-    run(async () => {
-      if(cur){
-        await db.updateLiquidacion(cur.id, obj);
-        if(cur.project === project){ const pr = byName(project); if(pr) await db.bumpProjectSpent(pr.id, (pr.spent||0) + (amount - cur.amount)); }
-        else { const o = byName(cur.project); if(o) await db.bumpProjectSpent(o.id, (o.spent||0) - cur.amount); const n = byName(project); if(n) await db.bumpProjectSpent(n.id, (n.spent||0) + amount); }
-      } else { await db.addLiquidacion(obj); const pr = byName(project); if(pr) await db.bumpProjectSpent(pr.id, (pr.spent||0) + amount); }
-    }, cur ? 'Liquidación actualizada' : 'Liquidación registrada');
+    const obj = { providerId:pv.id, worker:pv.name, trade:pv.rubro||pv.kind||'', amount, date:v('nl-date')||today(), ...pidOf(v('nl-project')), note:v('nl-note') };
+    const editId = S.editId; S.modal = null; S.editId = null;
+    if(editId) run(() => db.updateLiquidacion(editId, obj), 'Liquidación actualizada');
+    else run(() => db.addLiquidacion(obj), 'Liquidación registrada');
   });
 
   // ── Guardar: comprobante / documento / presupuesto ──
   el('save-receipt')?.addEventListener('click', () => {
     const f = ui.pendingFile; if(!f){ toast('Elegí un archivo'); return; }
-    const meta = { name:f.name, mime:f.type, amount:nv('rc-amount'), date:v('rc-date')||today(), project:v('rc-project'), orderId:v('rc-order'), note:v('rc-note') }, prov = S.prov;
+    const meta = { name:f.name, mime:f.type, amount:nv('rc-amount'), date:v('rc-date')||today(), ...pidOf(v('rc-project')), orderId:v('rc-order'), note:v('rc-note') }, prov = S.prov;
     ui.pendingFile = null; S.modal = null; run(() => db.addReceipt(prov, meta, f), 'Comprobante cargado');
   });
   el('save-inv-doc')?.addEventListener('click', () => {
@@ -204,7 +195,7 @@ function bind(){
     const amount = nv('bd-amount'); if(!amount){ toast('Ingresá el monto'); return; }
     const f = ui.pendingFile, prov = S.prov, editId = S.editId;
     const pv = D.providers.find(p => p.id === prov); const cur = editId ? ((pv&&pv.budgets)||[]).find(b => b.id == editId) : null;
-    const meta = { concept, name:f ? f.name : (cur ? cur.name : concept), amount, project:v('bd-project'), date:v('bd-date')||today(), note:v('bd-note') };
+    const meta = { concept, name:f ? f.name : (cur ? cur.name : concept), amount, ...pidOf(v('bd-project')), date:v('bd-date')||today(), note:v('bd-note') };
     ui.pendingFile = null; S.modal = null; S.editId = null;
     if(cur) run(() => db.updateBudget(cur.id, { ...meta, mime:cur.mime }, f, cur.fileId), 'Presupuesto actualizado');
     else run(() => db.addBudget(prov, meta, f), 'Presupuesto cargado');
@@ -289,7 +280,7 @@ function bind(){
   document.querySelectorAll('[data-delproj]').forEach(x => x.addEventListener('click', () => {
     const p = D.projects.find(z => z.id == x.dataset.delproj);
     if(!confirm('¿Eliminar el proyecto "' + p.name + '"? Se quitarán también sus gastos, liquidaciones, inversiones y planos.')) return;
-    S.page = 'proyectos'; run(() => db.deleteProject(p.id, p.name), 'Proyecto eliminado');
+    S.page = 'proyectos'; run(() => db.deleteProject(p.id), 'Proyecto eliminado');
   }));
   document.querySelectorAll('[data-delprov]').forEach(x => x.addEventListener('click', () => {
     const p = D.providers.find(z => z.id == x.dataset.delprov);

@@ -45,7 +45,7 @@ export function nextOrderNo(){
 }
 
 export const nextId = arr => (arr.length ? Math.max(...arr.map(x=>x.id||0)) : 0) + 1;
-export const projOptions = sel => D.projects.map(p => '<option '+(p.name===sel?'selected':'')+'>'+esc(p.name)+'</option>').join('');
+export const projOptions = selId => D.projects.map(p => '<option value="'+p.id+'" '+((selId!=null && p.id==selId)?'selected':'')+'>'+esc(p.name)+'</option>').join('');
 
 // Convierte un link conocido en URL embebible (o null si no se puede embeber).
 export function toEmbed(url){

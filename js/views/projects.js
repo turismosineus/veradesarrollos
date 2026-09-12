@@ -142,7 +142,7 @@ export function rProjD(){
   else if(tab==='camara') body = rCamaras(p, dir);
   else if(tab==='finanzas'){
     const g = p.salePrice - p.budget, pct = p.budget ? Math.round((g/p.budget)*100) : 0;
-    const projInvest = D.investments.filter(i => i.project === p.name);
+    const projInvest = D.investments.filter(i => i.projectId != null ? i.projectId === p.id : i.project === p.name);
     const invTotal = projInvest.reduce((a,i)=>a+i.amount,0);
     body = `
     <div class="two-col">

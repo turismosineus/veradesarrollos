@@ -1,4 +1,6 @@
 // Capa de acceso a datos: todo lo que lee/escribe en Supabase pasa por acá.
+// Regla de oro: los vínculos van por ID (project_id / provider_id); los textos
+// (project, provider) se guardan solo como apoyo visual y se re-derivan al cargar.
 import { supabase } from './supabase.js';
 import { D } from './state.js';
 import { uploadFile, removeFile } from './files.js';
@@ -7,17 +9,18 @@ const d = x => x || null;
 const num = x => Number(x) || 0;
 const clamp = x => Math.min(100, Math.max(0, num(x)));
 
-const mapProject = r => ({ id:r.id, name:r.name, address:r.address, status:r.status, progress:r.progress, startDate:r.start_date, endDate:r.end_date, salePrice:num(r.sale_price), budget:num(r.budget), spent:num(r.spent), description:r.description, updates:r.updates||[], plans:[], media:[], cameras:[], model3d:r.model3d, streamUrl:r.stream_url });
-const projectRow = o => ({ name:o.name, address:o.address, status:o.status, progress:o.progress, start_date:d(o.startDate), end_date:d(o.endDate), sale_price:num(o.salePrice), budget:num(o.budget), spent:num(o.spent), description:o.description, updates:o.updates||[], model3d:o.model3d||null, stream_url:o.streamUrl||null });
-const mapOrder   = r => ({ id:r.id, providerId:r.provider_id, project:r.project, status:r.status, items:r.items||[], date:r.date });
-const mapReceipt = r => ({ id:r.id, name:r.name, fileId:r.file_path, mime:r.mime, amount:num(r.amount), date:r.date, project:r.project, orderId:r.order_id, note:r.note });
-const mapBudget  = b => ({ id:b.id, providerId:b.provider_id, name:b.name, concept:b.concept, fileId:b.file_path, mime:b.mime, amount:num(b.amount), date:b.date, project:b.project, status:b.status||'pendiente', note:b.note });
+const mapProject = r => ({ id:r.id, name:r.name, address:r.address, status:r.status, progress:r.progress, startDate:r.start_date, endDate:r.end_date, salePrice:num(r.sale_price), budget:num(r.budget), spent:0, description:r.description, updates:r.updates||[], plans:[], media:[], cameras:[], model3d:r.model3d, streamUrl:r.stream_url });
+const projectRow = o => ({ name:o.name, address:o.address, status:o.status, progress:o.progress, start_date:d(o.startDate), end_date:d(o.endDate), sale_price:num(o.salePrice), budget:num(o.budget), description:o.description, updates:o.updates||[], model3d:o.model3d||null, stream_url:o.streamUrl||null });
+const mapOrder   = r => ({ id:r.id, providerId:r.provider_id, projectId:r.project_id, project:r.project, status:r.status, items:r.items||[], date:r.date });
+const mapReceipt = r => ({ id:r.id, name:r.name, fileId:r.file_path, mime:r.mime, amount:num(r.amount), date:r.date, projectId:r.project_id, project:r.project, orderId:r.order_id, note:r.note });
+const mapBudget  = b => ({ id:b.id, providerId:b.provider_id, name:b.name, concept:b.concept, fileId:b.file_path, mime:b.mime, amount:num(b.amount), date:b.date, projectId:b.project_id, project:b.project, status:b.status||'pendiente', note:b.note });
 const mapDoc     = r => ({ id:r.id, investor:r.investor, name:r.name, fileId:r.file_path, mime:r.mime, kind:r.kind, date:r.date, note:r.note });
-const mapExpense = e => ({ id:e.id, concept:e.concept, category:e.category, amount:num(e.amount), date:e.date, provider:e.provider, project:e.project, fileId:e.file_path, mime:e.mime });
-const mapLiq     = l => ({ id:l.id, providerId:l.provider_id, worker:l.worker, trade:l.trade, amount:num(l.amount), date:l.date, project:l.project, note:l.note });
+const mapExpense = e => ({ id:e.id, concept:e.concept, category:e.category, amount:num(e.amount), date:e.date, providerId:e.provider_id, provider:e.provider, projectId:e.project_id, project:e.project, fileId:e.file_path, mime:e.mime });
+const mapLiq     = l => ({ id:l.id, providerId:l.provider_id, worker:l.worker, trade:l.trade, amount:num(l.amount), date:l.date, projectId:l.project_id, project:l.project, note:l.note });
+const mapInv     = i => ({ id:i.id, investor:i.investor, projectId:i.project_id, project:i.project, amount:num(i.amount), pct:num(i.pct), date:i.date, note:i.note });
+const mapPlan    = p => ({ id:p.id, projectId:p.project_id, category:p.category, name:p.name, revision:p.revision, status:p.status, current:p.current, uploadedBy:p.uploaded_by, fileId:p.file_path, mime:p.mime, date:p.date, note:p.note });
 const mapMedia   = m => ({ id:m.id, projectId:m.project_id, kind:m.kind, title:m.title, url:m.url, fileId:m.file_path, mime:m.mime, note:m.note, uploadedBy:m.uploaded_by, date:m.date });
 const mapCamera  = c => ({ id:c.id, projectId:c.project_id, name:c.name, url:c.url, type:c.type||'auto' });
-const mapPlan    = p => ({ id:p.id, projectId:p.project_id, category:p.category, name:p.name, revision:p.revision, status:p.status, current:p.current, uploadedBy:p.uploaded_by, fileId:p.file_path, mime:p.mime, date:p.date, note:p.note });
 
 export async function loadAll(){
   const q = (t, o='id') => supabase.from(t).select('*').order(o);
@@ -26,32 +29,43 @@ export async function loadAll(){
     q('investments'), q('receipts'), q('investor_docs'), q('plans'), q('budgets'), q('media'), q('cameras')
   ]);
   for(const r of [proj, prov, ord, exp, liq, inv, rec, docs, pln, bud, med, cam]) if(r.error) throw r.error;
-  D.projects      = (proj.data||[]).map(mapProject);
-  D.providers     = (prov.data||[]).map(p => ({ id:p.id, name:p.name, rubro:p.rubro, contact:p.contact, phone:p.phone, email:p.email, kind:p.kind||'materiales', budgets:[], orders:[], receipts:[] }));
-  D.expenses      = (exp.data||[]).map(mapExpense);
-  D.liquidaciones = (liq.data||[]).map(mapLiq);
-  D.investments   = (inv.data||[]).map(i => ({ id:i.id, investor:i.investor, project:i.project, amount:num(i.amount), pct:num(i.pct), date:i.date, note:i.note }));
-  D.investorDocs  = (docs.data||[]).map(mapDoc);
-  const provById = Object.fromEntries(D.providers.map(p => [p.id, p]));
-  (ord.data||[]).forEach(o => { const p = provById[o.provider_id]; if(p) p.orders.push(mapOrder(o)); });
-  (rec.data||[]).forEach(r => { const p = provById[r.provider_id]; if(p) p.receipts.push(mapReceipt(r)); });
-  (bud.data||[]).forEach(b => { const p = provById[b.provider_id]; if(p) p.budgets.push(mapBudget(b)); });
+
+  D.projects  = (proj.data||[]).map(mapProject);
+  D.providers = (prov.data||[]).map(p => ({ id:p.id, name:p.name, rubro:p.rubro, contact:p.contact, phone:p.phone, email:p.email, kind:p.kind||'materiales', budgets:[], orders:[], receipts:[] }));
   const projById = Object.fromEntries(D.projects.map(p => [p.id, p]));
+  const provById = Object.fromEntries(D.providers.map(p => [p.id, p]));
+  // Nombres derivados del ID (si hay ID); si no, el texto guardado.
+  const pname = (id, txt) => (id != null && projById[id]) ? projById[id].name : (txt || '');
+  const vname = (id, txt) => (id != null && provById[id]) ? provById[id].name : (txt || '-');
+
+  D.expenses      = (exp.data||[]).map(mapExpense).map(e => ({ ...e, project:pname(e.projectId, e.project), provider:vname(e.providerId, e.provider) }));
+  D.liquidaciones = (liq.data||[]).map(mapLiq).map(l => ({ ...l, project:pname(l.projectId, l.project), worker:vname(l.providerId, l.worker) }));
+  D.investments   = (inv.data||[]).map(mapInv).map(i => ({ ...i, project:pname(i.projectId, i.project) }));
+  D.investorDocs  = (docs.data||[]).map(mapDoc);
+
+  (ord.data||[]).forEach(o => { const p = provById[o.provider_id]; if(p) p.orders.push({ ...mapOrder(o), project:pname(o.project_id, o.project) }); });
+  (rec.data||[]).forEach(r => { const p = provById[r.provider_id]; if(p) p.receipts.push({ ...mapReceipt(r), project:pname(r.project_id, r.project) }); });
+  (bud.data||[]).forEach(b => { const p = provById[b.provider_id]; if(p) p.budgets.push({ ...mapBudget(b), project:pname(b.project_id, b.project) }); });
   (pln.data||[]).forEach(r => { const p = projById[r.project_id]; if(p) p.plans.push(mapPlan(r)); });
   (med.data||[]).forEach(r => { const p = projById[r.project_id]; if(p) p.media.push(mapMedia(r)); });
   (cam.data||[]).forEach(r => { const p = projById[r.project_id]; if(p) p.cameras.push(mapCamera(r)); });
+
+  // "Gastado" SIEMPRE calculado: gastos + liquidaciones del proyecto.
+  D.projects.forEach(p => {
+    const g = D.expenses.filter(e => e.projectId === p.id).reduce((a,e)=>a+e.amount,0);
+    const l = D.liquidaciones.filter(x => x.projectId === p.id).reduce((a,x)=>a+x.amount,0);
+    p.spent = g + l;
+  });
 }
 
 // ── Proyectos ──
 export async function addProject(o){ const { error } = await supabase.from('projects').insert(projectRow(o)); if(error) throw error; }
 export async function updateProject(id, o){ const { error } = await supabase.from('projects').update(projectRow(o)).eq('id', id); if(error) throw error; }
-export async function bumpProjectSpent(id, spent){ const { error } = await supabase.from('projects').update({ spent:Math.max(0, num(spent)) }).eq('id', id); if(error) throw error; }
 export async function setProjectUpdates(id, updates, removePaths){
   if(removePaths && removePaths.length) for(const p of removePaths) await removeFile(p);
   const { error } = await supabase.from('projects').update({ updates }).eq('id', id); if(error) throw error;
 }
 export async function saveProjectProgress(id, updates, progress){ const { error } = await supabase.from('projects').update({ updates, progress:clamp(progress) }).eq('id', id); if(error) throw error; }
-// Nueva actualización con fotos: sube las fotos y guarda updates + % en un paso.
 export async function addProjectUpdate(id, currentUpdates, upd, files, progress){
   const photos = [];
   for(const f of (files||[])){ const path = await uploadFile(f); photos.push({ path, name:f.name }); }
@@ -59,19 +73,11 @@ export async function addProjectUpdate(id, currentUpdates, upd, files, progress)
   const { error } = await supabase.from('projects').update({ updates, progress:clamp(progress) }).eq('id', id);
   if(error){ for(const ph of photos) await removeFile(ph.path); throw error; }
 }
-export async function deleteProject(id, name){
+export async function deleteProject(id){
   const { data: pr } = await supabase.from('projects').select('updates').eq('id', id).single();
   for(const u of ((pr && pr.updates) || [])) for(const ph of (u.photos||[])) await removeFile(ph.path);
-  const { data: md } = await supabase.from('media').select('file_path').eq('project_id', id);
-  if(md) for(const r of md) if(r.file_path) await removeFile(r.file_path);
-  const { data: pls } = await supabase.from('plans').select('file_path').eq('project_id', id);
-  if(pls) for(const r of pls) if(r.file_path) await removeFile(r.file_path);
-  const { data: exs } = await supabase.from('expenses').select('file_path').eq('project', name);
-  if(exs) for(const r of exs) if(r.file_path) await removeFile(r.file_path);
-  await supabase.from('expenses').delete().eq('project', name);
-  await supabase.from('liquidaciones').delete().eq('project', name);
-  await supabase.from('investments').delete().eq('project', name);
-  const { error } = await supabase.from('projects').delete().eq('id', id); if(error) throw error;
+  for(const t of ['plans','media','expenses']){ const { data } = await supabase.from(t).select('file_path').eq('project_id', id); if(data) for(const r of data) if(r.file_path) await removeFile(r.file_path); }
+  const { error } = await supabase.from('projects').delete().eq('id', id); if(error) throw error; // el resto se borra en cascada
 }
 
 // ── Proveedores ──
@@ -83,56 +89,59 @@ export async function deleteProvider(id, filePaths){
 }
 
 // ── Órdenes ──
-export async function addOrder(providerId, o){ const { error } = await supabase.from('orders').insert({ id:o.id, provider_id:providerId, project:d(o.project), date:d(o.date), status:'pendiente', items:o.items||[] }); if(error) throw error; }
+export async function addOrder(providerId, o){ const { error } = await supabase.from('orders').insert({ id:o.id, provider_id:providerId, project_id:o.projectId||null, project:d(o.project), date:d(o.date), status:'pendiente', items:o.items||[] }); if(error) throw error; }
 export async function advanceOrder(id, status){ const { error } = await supabase.from('orders').update({ status }).eq('id', id); if(error) throw error; }
 
-// ── Presupuestos de proveedor ──
+// ── Presupuestos ──
 export async function addBudget(providerId, meta, file){
   let path = null, mime = null;
   if(file){ path = await uploadFile(file); mime = file.type; }
-  const { error } = await supabase.from('budgets').insert({ provider_id:providerId, name:meta.name, concept:meta.concept, file_path:path, mime, amount:num(meta.amount), date:d(meta.date), project:d(meta.project), status:'pendiente', note:meta.note });
+  const { error } = await supabase.from('budgets').insert({ provider_id:providerId, name:meta.name, concept:meta.concept, file_path:path, mime, amount:num(meta.amount), date:d(meta.date), project_id:meta.projectId||null, project:d(meta.project), status:'pendiente', note:meta.note });
   if(error){ if(path) await removeFile(path); throw error; }
 }
 export async function updateBudget(id, o, file, oldPath){
   let file_path = oldPath || null, mime = o.mime || null;
   if(file){ file_path = await uploadFile(file); mime = file.type; }
-  const { error } = await supabase.from('budgets').update({ name:o.name, concept:o.concept, file_path, mime, amount:num(o.amount), date:d(o.date), project:d(o.project), note:o.note }).eq('id', id);
+  const { error } = await supabase.from('budgets').update({ name:o.name, concept:o.concept, file_path, mime, amount:num(o.amount), date:d(o.date), project_id:o.projectId||null, project:d(o.project), note:o.note }).eq('id', id);
   if(error){ if(file && file_path) await removeFile(file_path); throw error; }
   if(file && oldPath) await removeFile(oldPath);
 }
 export async function setBudgetStatus(id, status){ const { error } = await supabase.from('budgets').update({ status }).eq('id', id); if(error) throw error; }
 export async function deleteBudget(id, filePath){ const { error } = await supabase.from('budgets').delete().eq('id', id); if(error) throw error; if(filePath) await removeFile(filePath); }
 
-// ── Gastos (compras) ──
+// ── Gastos ──
+const expenseRow = (o, file_path, mime) => ({ concept:o.concept, category:o.category, amount:num(o.amount), date:d(o.date), provider_id:o.providerId||null, provider:o.provider||'-', project_id:o.projectId||null, project:d(o.project), file_path, mime });
 export async function addExpense(o, file){
   let file_path = null, mime = null;
   if(file){ file_path = await uploadFile(file); mime = file.type; }
-  const { error } = await supabase.from('expenses').insert({ concept:o.concept, category:o.category, amount:num(o.amount), date:d(o.date), provider:o.provider, project:o.project, file_path, mime });
+  const { error } = await supabase.from('expenses').insert(expenseRow(o, file_path, mime));
   if(error){ if(file_path) await removeFile(file_path); throw error; }
 }
 export async function updateExpense(id, o, file, oldPath){
   let file_path = oldPath || null, mime = o.mime || null;
   if(file){ file_path = await uploadFile(file); mime = file.type; }
-  const { error } = await supabase.from('expenses').update({ concept:o.concept, category:o.category, amount:num(o.amount), date:d(o.date), provider:o.provider, project:o.project, file_path, mime }).eq('id', id);
+  const { error } = await supabase.from('expenses').update(expenseRow(o, file_path, mime)).eq('id', id);
   if(error){ if(file && file_path) await removeFile(file_path); throw error; }
   if(file && oldPath) await removeFile(oldPath);
 }
 export async function deleteExpense(id, filePath){ const { error } = await supabase.from('expenses').delete().eq('id', id); if(error) throw error; if(filePath) await removeFile(filePath); }
 
 // ── Liquidaciones ──
-export async function addLiquidacion(o){ const { error } = await supabase.from('liquidaciones').insert({ provider_id:o.providerId||null, worker:o.worker, trade:o.trade, amount:num(o.amount), date:d(o.date), project:d(o.project), note:o.note }); if(error) throw error; }
-export async function updateLiquidacion(id, o){ const { error } = await supabase.from('liquidaciones').update({ provider_id:o.providerId||null, worker:o.worker, trade:o.trade, amount:num(o.amount), date:d(o.date), project:d(o.project), note:o.note }).eq('id', id); if(error) throw error; }
+const liqRow = o => ({ provider_id:o.providerId||null, worker:o.worker, trade:o.trade, amount:num(o.amount), date:d(o.date), project_id:o.projectId||null, project:d(o.project), note:o.note });
+export async function addLiquidacion(o){ const { error } = await supabase.from('liquidaciones').insert(liqRow(o)); if(error) throw error; }
+export async function updateLiquidacion(id, o){ const { error } = await supabase.from('liquidaciones').update(liqRow(o)).eq('id', id); if(error) throw error; }
 export async function deleteLiquidacion(id){ const { error } = await supabase.from('liquidaciones').delete().eq('id', id); if(error) throw error; }
 
 // ── Inversiones ──
-export async function addInvestment(o){ const { error } = await supabase.from('investments').insert({ investor:o.investor, project:d(o.project), amount:num(o.amount), pct:num(o.pct), date:d(o.date), note:o.note }); if(error) throw error; }
-export async function updateInvestment(id, o){ const { error } = await supabase.from('investments').update({ investor:o.investor, project:d(o.project), amount:num(o.amount), pct:num(o.pct), date:d(o.date), note:o.note }).eq('id', id); if(error) throw error; }
+const invRow = o => ({ investor:o.investor, project_id:o.projectId||null, project:d(o.project), amount:num(o.amount), pct:num(o.pct), date:d(o.date), note:o.note });
+export async function addInvestment(o){ const { error } = await supabase.from('investments').insert(invRow(o)); if(error) throw error; }
+export async function updateInvestment(id, o){ const { error } = await supabase.from('investments').update(invRow(o)).eq('id', id); if(error) throw error; }
 export async function deleteInvestment(id){ const { error } = await supabase.from('investments').delete().eq('id', id); if(error) throw error; }
 
-// ── Comprobantes de proveedor ──
+// ── Comprobantes ──
 export async function addReceipt(providerId, meta, file){
   const path = await uploadFile(file);
-  const { error } = await supabase.from('receipts').insert({ provider_id:providerId, name:meta.name, file_path:path, mime:meta.mime, amount:num(meta.amount), date:d(meta.date), project:d(meta.project), order_id:d(meta.orderId), note:meta.note });
+  const { error } = await supabase.from('receipts').insert({ provider_id:providerId, name:meta.name, file_path:path, mime:meta.mime, amount:num(meta.amount), date:d(meta.date), project_id:meta.projectId||null, project:d(meta.project), order_id:d(meta.orderId), note:meta.note });
   if(error){ await removeFile(path); throw error; }
 }
 export async function deleteReceipt(id, filePath){ const { error } = await supabase.from('receipts').delete().eq('id', id); if(error) throw error; await removeFile(filePath); }
@@ -145,7 +154,7 @@ export async function addInvestorDoc(meta, file){
 }
 export async function deleteInvestorDoc(id, filePath){ const { error } = await supabase.from('investor_docs').delete().eq('id', id); if(error) throw error; await removeFile(filePath); }
 
-// ── Planos (categorías + revisiones) ──
+// ── Planos ──
 function nextRevision(existing){ let max = -1; (existing||[]).forEach(p => { const m = /R?(\d+)/i.exec(p.revision||''); if(m) max = Math.max(max, +m[1]); }); return 'R' + (max+1); }
 export async function addPlans(projectId, meta, files){
   for(const f of files){
@@ -165,7 +174,7 @@ export async function addRevision(projectId, meta, file){
 export async function setPlanStatus(id, status){ const { error } = await supabase.from('plans').update({ status }).eq('id', id); if(error) throw error; }
 export async function deletePlan(id, filePath){ const { error } = await supabase.from('plans').delete().eq('id', id); if(error) throw error; if(filePath) await removeFile(filePath); }
 
-// ── Multimedia del proyecto (links 3D/video, imágenes, videos) ──
+// ── Multimedia y cámaras ──
 export async function addMediaLink(projectId, meta){ const { error } = await supabase.from('media').insert({ project_id:projectId, kind:'link', title:meta.title, url:meta.url, note:meta.note, uploaded_by:meta.uploadedBy, date:d(meta.date) }); if(error) throw error; }
 export async function addMediaFiles(projectId, kind, meta, files){
   for(const f of files){
@@ -175,7 +184,5 @@ export async function addMediaFiles(projectId, kind, meta, files){
   }
 }
 export async function deleteMedia(id, filePath){ const { error } = await supabase.from('media').delete().eq('id', id); if(error) throw error; if(filePath) await removeFile(filePath); }
-
-// ── Cámaras ──
 export async function addCamera(projectId, o){ const { error } = await supabase.from('cameras').insert({ project_id:projectId, name:o.name, url:o.url, type:o.type }); if(error) throw error; }
 export async function deleteCamera(id){ const { error } = await supabase.from('cameras').delete().eq('id', id); if(error) throw error; }

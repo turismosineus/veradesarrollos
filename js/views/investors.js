@@ -4,7 +4,7 @@ import { fmt, fmtK, esc, aggInvestors } from '../utils.js';
 
 // Retorno estimado de un aporte = participación % × ganancia proyectada del proyecto (venta est. − presupuesto).
 function retOf(i){
-  const p = D.projects.find(x => x.name === i.project);
+  const p = D.projects.find(x => i.projectId != null ? x.id === i.projectId : x.name === i.project);
   if(!p) return { gain:0, total:i.amount, known:false };
   const g = (p.salePrice||0) - (p.budget||0);
   const gain = g * (i.pct||0) / 100;

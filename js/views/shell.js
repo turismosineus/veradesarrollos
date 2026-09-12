@@ -26,6 +26,8 @@ function rPage(){
 export function rApp(){
   const u = S.user, dir = isDirector();
   return `<div class="app">
+    <button class="mob-menu" id="mob-menu" title="Menú"><i class="ti ti-menu-2"></i></button>
+    <div class="sb-backdrop" id="sb-backdrop"></div>
     <div class="sidebar">
       <div class="sb-logo"><div class="sb-brand">VERA <span>DESARROLLOS</span></div><div class="sb-tagline">Sistema de gestión</div></div>
       <div class="nav-section">
