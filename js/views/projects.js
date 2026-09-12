@@ -91,6 +91,59 @@ function rCamaras(p, dir){
     </div>`;
 }
 
+// Pestaña "Finanzas" del proyecto: presupuestos recibidos → elegidos → gasto proyectado.
+function rFinanzasProy(p, dir){
+  const g = p.salePrice - p.budget, pct = p.budget ? Math.round((g/p.budget)*100) : 0;
+  const projInvest = D.investments.filter(i => i.projectId != null ? i.projectId === p.id : i.project === p.name);
+  const invTotal = projInvest.reduce((a,i)=>a+i.amount,0);
+  const buds = D.providers.flatMap(pv => (pv.budgets||[]).filter(b => b.projectId === p.id).map(b => ({ ...b, provider:pv.name })));
+  const chosen = buds.filter(b => b.status === 'aprobado');
+  const pending = buds.filter(b => b.status !== 'aprobado');
+  const projected = chosen.reduce((a,b)=>a+b.amount,0);
+  const diff = p.budget - projected;
+  const bb = s => s==='rechazado' ? '<span class="badge br">rechazado</span>' : '<span class="badge ba">pendiente</span>';
+  const fileBtns = b => b.fileId ? `<button class="link-btn" data-rview="${b.fileId}" data-rname="${esc(b.name||'presupuesto')}"><i class="ti ti-eye"></i></button> <button class="link-btn" data-rdl="${b.fileId}" data-rname="${esc(b.name||'presupuesto')}"><i class="ti ti-download"></i></button>` : '<span style="color:var(--text3)">—</span>';
+  const norm = x => (x||'').trim().toLowerCase();
+
+  const chosenSec = `<div class="sec"><h3><span>Presupuesto de obra — elegidos</span><span style="font-size:12px;color:var(--text3);font-weight:400">Gasto proyectado: <strong style="color:var(--orange)">${fmt(projected)}</strong></span></h3>
+    ${chosen.length ? `<table><thead><tr><th>Concepto</th><th>Proveedor</th><th>Monto</th><th>Fecha</th><th>Archivo</th>${dir?'<th></th>':''}</tr></thead><tbody>
+      ${chosen.map(b=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}${b.note?`<div style="font-size:11px;color:var(--text3)">${esc(b.note)}</div>`:''}</td><td>${esc(b.provider)}</td><td style="font-weight:600;color:var(--green)">${fmt(b.amount)}</td><td>${b.date||''}</td><td>${fileBtns(b)}</td>${dir?`<td><button class="link-btn" data-bdunchoose="${b.id}" title="Quitar de los elegidos (vuelve a pendiente)"><i class="ti ti-arrow-back-up"></i> Quitar</button></td>`:''}</tr>`).join('')}
+      </tbody><tfoot><tr><td colspan="2" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL PROYECTADO</td><td style="font-weight:700;color:var(--orange);font-size:15px">${fmt(projected)}</td><td colspan="${dir?3:2}"></td></tr></tfoot></table>`
+    : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Todavía no elegiste ningún presupuesto. Elegí de la lista de "Presupuestos recibidos" y se suman acá como gasto proyectado.</div>`}</div>`;
+
+  const concepts = [...new Set(pending.map(b => b.concept || 'Sin concepto'))];
+  const pendRows = concepts.map(c => {
+    const rows = pending.filter(b => (b.concept||'Sin concepto')===c).sort((a,b)=>a.amount-b.amount);
+    const min = rows[0] ? rows[0].amount : 0, already = chosen.some(x => norm(x.concept) === norm(c));
+    return rows.map((b,i)=>`<tr><td style="font-weight:500">${i===0?esc(c):''}${i===0&&already?' <span class="badge bgr" title="Ya hay un presupuesto elegido para este concepto">ya elegido</span>':''}</td><td>${esc(b.provider)}</td><td style="font-weight:600;color:${b.amount===min&&rows.length>1?'var(--green)':'var(--text)'}">${fmt(b.amount)}${b.amount===min&&rows.length>1?' <span class="badge bg">más bajo</span>':''}</td><td>${bb(b.status)}</td><td>${b.date||''}</td><td>${fileBtns(b)}</td>${dir?`<td style="white-space:nowrap"><button class="btn-or sm" data-bdchoose="${b.id}"><i class="ti ti-check"></i> Elegir</button> ${b.status!=='rechazado'?`<button class="link-btn" data-bdreject="${b.id}" title="Rechazar" style="color:var(--red)"><i class="ti ti-x"></i></button>`:''}</td>`:''}</tr>`).join('');
+  }).join('');
+  const pendingSec = `<div class="sec"><h3><span>Presupuestos recibidos</span>${dir?`<button class="btn-or sm" id="new-budget-proj"><i class="ti ti-upload"></i> Cargar presupuesto</button>`:''}</h3>
+    ${pending.length ? `<table><thead><tr><th>Concepto</th><th>Proveedor</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Archivo</th>${dir?'<th></th>':''}</tr></thead><tbody>${pendRows}</tbody></table>`
+    : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Sin presupuestos pendientes para este proyecto. Cargá los que te manden los proveedores (materiales, mano de obra, profesionales) y compará.</div>`}</div>`;
+
+  return `
+    ${dir?`<div class="kpi-grid">
+      <div class="kpi"><i class="ti ti-file-dollar"></i><div class="kpi-lbl">Gasto proyectado (elegidos)</div><div class="kpi-val">${fmtK(projected)}</div></div>
+      <div class="kpi"><i class="ti ti-receipt"></i><div class="kpi-lbl">Gastado real</div><div class="kpi-val">${fmtK(p.spent)}</div></div>
+      <div class="kpi"><i class="ti ti-wallet"></i><div class="kpi-lbl">Presupuesto del proyecto</div><div class="kpi-val">${fmtK(p.budget)}</div></div>
+      <div class="kpi"><i class="ti ti-scale"></i><div class="kpi-lbl">Margen vs presupuesto</div><div class="kpi-val" style="color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'':'−'}${fmtK(Math.abs(diff))}</div></div>
+    </div>`:''}
+    <div class="two-col">
+      <div class="sec"><h3>Resumen financiero</h3>
+        <div class="stat-row"><span class="sl">Capital invertido</span><span class="sv">${fmt(invTotal)}</span></div>
+        <div class="stat-row"><span class="sl">Total gastado (real)</span><span class="sv">${fmt(p.spent)}</span></div>
+        ${dir?`<div class="stat-row"><span class="sl">Gasto proyectado (elegidos)</span><span class="sv or">${fmt(projected)}</span></div>`:''}
+        <div class="stat-row"><span class="sl">Presupuesto total</span><span class="sv">${fmt(p.budget)}</span></div>
+        <div class="stat-row"><span class="sl">Precio de venta est.</span><span class="sv">${fmt(p.salePrice)}</span></div>
+        <div class="stat-row"><span class="sl">Ganancia proyectada</span><span class="sv gr">${fmt(g)} (${pct}%)</span></div></div>
+      <div class="sec"><h3>Distribución financiera</h3><div class="bar-chart">
+        ${[['Gastado',p.spent,'#f97316'],['Proyectado',projected,'#a855f7'],['Presupuesto',p.budget,'#f59e0b'],['Venta est.',p.salePrice,'#22c55e']].map(([l,vv,c])=>`<div class="bar-wrap"><div class="bar-val">${fmtK(vv)}</div><div class="bar" style="height:${Math.round((vv/Math.max(p.spent,projected,p.budget,p.salePrice,1))*80)+10}px;background:${c}"></div><div class="bar-lbl">${l}</div></div>`).join('')}
+      </div></div>
+    </div>
+    ${dir ? chosenSec + pendingSec : ''}
+    ${dir?`<div class="sec"><h3>Inversores del proyecto</h3>${projInvest.length?`<table><thead><tr><th>Inversor</th><th>Monto aportado</th><th>Participación</th><th>Fecha</th></tr></thead><tbody>${projInvest.map(i=>`<tr><td>${esc(i.investor)}</td><td style="font-weight:500;color:var(--orange)">${fmt(i.amount)}</td><td><span class="badge bb">${i.pct}%</span></td><td>${i.date||''}</td></tr>`).join('')}</tbody></table>`:`<div style="color:var(--text3);font-size:13px">Sin inversores en este proyecto.</div>`}</div>`:''}`;
+}
+
 export function rProyectos(){
   const dir = isDirector();
   const ps = dir ? D.projects : D.projects.filter(p => p.name === S.user.project);
@@ -140,24 +193,7 @@ export function rProjD(){
   else if(tab==='planos') body = rPlanos(p, dir);
   else if(tab==='3d') body = r3D(p, dir);
   else if(tab==='camara') body = rCamaras(p, dir);
-  else if(tab==='finanzas'){
-    const g = p.salePrice - p.budget, pct = p.budget ? Math.round((g/p.budget)*100) : 0;
-    const projInvest = D.investments.filter(i => i.projectId != null ? i.projectId === p.id : i.project === p.name);
-    const invTotal = projInvest.reduce((a,i)=>a+i.amount,0);
-    body = `
-    <div class="two-col">
-      <div class="sec"><h3>Resumen financiero</h3>
-        <div class="stat-row"><span class="sl">Capital invertido</span><span class="sv">${fmt(invTotal)}</span></div>
-        <div class="stat-row"><span class="sl">Total gastado</span><span class="sv">${fmt(p.spent)}</span></div>
-        <div class="stat-row"><span class="sl">Presupuesto total</span><span class="sv">${fmt(p.budget)}</span></div>
-        <div class="stat-row"><span class="sl">Precio de venta est.</span><span class="sv">${fmt(p.salePrice)}</span></div>
-        <div class="stat-row"><span class="sl">Ganancia proyectada</span><span class="sv gr">${fmt(g)} (${pct}%)</span></div></div>
-      <div class="sec"><h3>Distribución financiera</h3><div class="bar-chart">
-        ${[['Gastado',p.spent,'#f97316'],['Presupuesto',p.budget,'#f59e0b'],['Venta est.',p.salePrice,'#22c55e']].map(([l,vv,c])=>`<div class="bar-wrap"><div class="bar-val">${fmtK(vv)}</div><div class="bar" style="height:${Math.round((vv/Math.max(p.spent,p.budget,p.salePrice,1))*80)+10}px;background:${c}"></div><div class="bar-lbl">${l}</div></div>`).join('')}
-      </div></div>
-    </div>
-    ${dir?`<div class="sec"><h3>Inversores del proyecto</h3>${projInvest.length?`<table><thead><tr><th>Inversor</th><th>Monto aportado</th><th>Participación</th><th>Fecha</th></tr></thead><tbody>${projInvest.map(i=>`<tr><td>${esc(i.investor)}</td><td style="font-weight:500;color:var(--orange)">${fmt(i.amount)}</td><td><span class="badge bb">${i.pct}%</span></td><td>${i.date}</td></tr>`).join('')}</tbody></table>`:`<div style="color:var(--text3);font-size:13px">Sin inversores en este proyecto.</div>`}</div>`:''}`;
-  }
+  else if(tab==='finanzas') body = rFinanzasProy(p, dir);
   return `
   <div class="topbar">
     <button class="back-btn" id="back"><i class="ti ti-arrow-left"></i> Proyectos</button>

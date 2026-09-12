@@ -102,7 +102,9 @@ function bind(){
   open('new-order', 'new-order', () => { S.mi = [{desc:'',qty:'',unit:'u',price:''}]; });
   open('new-inv', 'new-investor', () => { S.invName = ''; }); open('new-investor', 'new-investor', () => { S.invName = ''; });
   open('new-exp', 'new-exp'); open('new-liq', 'new-liquidacion'); open('new-receipt', 'new-receipt'); open('new-inv-doc', 'new-inv-doc');
-  open('new-update', 'new-update'); open('new-plan', 'new-plan'); open('new-budget', 'new-budget');
+  open('new-update', 'new-update'); open('new-plan', 'new-plan');
+  open('new-budget', 'new-budget', () => { S.bdCtx = 'provider'; });
+  open('new-budget-proj', 'new-budget', () => { S.bdCtx = 'project'; });
   open('new-media-link','new-media-link'); open('new-media-img','new-media-img'); open('new-media-vid','new-media-vid'); open('new-camera','new-camera');
   document.querySelectorAll('[data-addapt]').forEach(x => x.addEventListener('click', () => { S.editId = null; S.invName = decodeURIComponent(x.dataset.addapt); S.modal = 'new-investor'; render(); }));
   document.querySelectorAll('[data-revopen]').forEach(x => x.addEventListener('click', () => { S.revCat = decodeURIComponent(x.dataset.revcat); S.revName = decodeURIComponent(x.dataset.revname); ui.pendingFile = null; S.modal = 'new-revision'; render(); }));
@@ -193,14 +195,21 @@ function bind(){
   el('save-budget')?.addEventListener('click', () => {
     const concept = v('bd-concept'); if(!concept){ toast('Falta el concepto'); return; }
     const amount = nv('bd-amount'); if(!amount){ toast('Ingresá el monto'); return; }
-    const f = ui.pendingFile, prov = S.prov, editId = S.editId;
-    const pv = D.providers.find(p => p.id === prov); const cur = editId ? ((pv&&pv.budgets)||[]).find(b => b.id == editId) : null;
-    const meta = { concept, name:f ? f.name : (cur ? cur.name : concept), amount, ...pidOf(v('bd-project')), date:v('bd-date')||today(), note:v('bd-note') };
+    const f = ui.pendingFile, editId = S.editId, fromProj = S.bdCtx === 'project';
+    let prov = S.prov, projInfo;
+    if(fromProj){ prov = +v('bd-prov') || null; if(!prov){ toast('Elegí el proveedor'); return; } projInfo = pidOf(S.proj); }
+    else projInfo = pidOf(v('bd-project'));
+    const pv = D.providers.find(p => p.id === prov); const cur = (!fromProj && editId) ? ((pv&&pv.budgets)||[]).find(b => b.id == editId) : null;
+    const meta = { concept, name:f ? f.name : (cur ? cur.name : concept), amount, ...projInfo, date:v('bd-date')||today(), note:v('bd-note') };
     ui.pendingFile = null; S.modal = null; S.editId = null;
     if(cur) run(() => db.updateBudget(cur.id, { ...meta, mime:cur.mime }, f, cur.fileId), 'Presupuesto actualizado');
     else run(() => db.addBudget(prov, meta, f), 'Presupuesto cargado');
   });
-  document.querySelectorAll('[data-bdapprove]').forEach(x => x.addEventListener('click', () => run(() => db.setBudgetStatus(x.dataset.bdapprove, 'aprobado'), 'Presupuesto aprobado')));
+  const findBudget = id => { for(const pv of D.providers){ const b = (pv.budgets||[]).find(z => z.id == id); if(b) return b; } return null; };
+  const choose = id => { const b = findBudget(id); run(() => db.chooseBudget(id, b ? b.projectId : null, b ? b.concept : null), 'Presupuesto elegido'); };
+  document.querySelectorAll('[data-bdapprove]').forEach(x => x.addEventListener('click', () => choose(x.dataset.bdapprove)));
+  document.querySelectorAll('[data-bdchoose]').forEach(x => x.addEventListener('click', () => choose(x.dataset.bdchoose)));
+  document.querySelectorAll('[data-bdunchoose]').forEach(x => x.addEventListener('click', () => run(() => db.setBudgetStatus(x.dataset.bdunchoose, 'pendiente'), 'Presupuesto devuelto a pendientes')));
   document.querySelectorAll('[data-bdreject]').forEach(x => x.addEventListener('click', () => run(() => db.setBudgetStatus(x.dataset.bdreject, 'rechazado'), 'Presupuesto rechazado')));
   document.querySelectorAll('[data-bddel]').forEach(x => x.addEventListener('click', () => { if(!confirm('¿Eliminar este presupuesto?')) return; run(() => db.deleteBudget(x.dataset.bddel, x.dataset.rfile || null), 'Presupuesto eliminado'); }));
 

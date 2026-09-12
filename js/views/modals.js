@@ -107,13 +107,16 @@ export function rModal(){
   }
 
   if(m==='new-budget'){
-    const prov = D.providers.find(p=>p.id===S.prov);
-    const ed = S.editId ? ((prov&&prov.budgets)||[]).find(b=>b.id==S.editId) : null;
-    return shell(ed?'Editar presupuesto':'Cargar presupuesto', 'Presupuesto de '+esc(prov?prov.name:''), `
+    const fromProj = S.bdCtx === 'project';
+    const prov = fromProj ? null : D.providers.find(p=>p.id===S.prov);
+    const proj = fromProj ? D.projects.find(p=>p.id===S.proj) : null;
+    const ed = (!fromProj && S.editId) ? ((prov&&prov.budgets)||[]).find(b=>b.id==S.editId) : null;
+    return shell(ed?'Editar presupuesto':'Cargar presupuesto', fromProj ? 'Para el proyecto '+esc(proj?proj.name:'') : 'Presupuesto de '+esc(prov?prov.name:''), `
+      ${fromProj ? `<div class="fl"><label>Proveedor <span class="req">*</span></label><select class="fi" id="bd-prov"><option value="">— Elegí quién presupuesta —</option>${D.providers.map(p=>`<option value="${p.id}">${esc(p.name)} — ${esc(p.rubro||'')} (${esc(p.kind||'materiales')})</option>`).join('')}</select></div>` : ''}
       <div class="fl"><label>Concepto <span class="req">*</span></label><input class="fi" id="bd-concept" value="${ed?esc(ed.concept||''):''}" placeholder="Ej. Aberturas, Instalación eléctrica, Hierro..."><div style="font-size:11px;color:#6b7280;margin-top:4px">Usá el mismo concepto en distintos proveedores para poder compararlos.</div></div>
       <div class="fl"><label>Archivo ${ed&&ed.fileId?'(ya hay uno cargado — elegí otro solo si querés reemplazarlo)':'(opcional)'}</label>${drop('bd', 'Arrastrá el PDF o hacé click', '', false)}</div>
       <div class="frow"><div class="fl"><label>Monto ($) <span class="req">*</span></label><input class="fi" id="bd-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
-        <div class="fl"><label>Proyecto</label><select class="fi" id="bd-project"><option value="">— Sin proyecto —</option>${projOptions(ed?ed.projectId:undefined)}</select></div></div>
+        ${fromProj ? '' : `<div class="fl"><label>Proyecto</label><select class="fi" id="bd-project"><option value="">— Sin proyecto —</option>${projOptions(ed?ed.projectId:undefined)}</select></div>`}</div>
       <div class="frow"><div class="fl"><label>Fecha</label><input class="fi" id="bd-date" type="date" value="${ed?(ed.date||''):today()}"></div>
         <div class="fl"><label>Nota</label><input class="fi" id="bd-note" value="${ed?esc(ed.note||''):''}" placeholder="Validez, condiciones, etc."></div></div>`,
       'save-budget', ed?'Guardar cambios':'Guardar presupuesto');
