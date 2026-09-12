@@ -62,7 +62,7 @@ export function rModal(){
     const pre = ed ? ed.investor : (S.invName||'');
     return shell(ed?'Editar aporte':'Registrar aporte de inversor', 'Ingresá los datos del aporte', `
       <div class="fl"><label>Nombre del inversor <span class="req">*</span></label><input class="fi" id="ni-name" value="${esc(pre)}" placeholder="Nombre completo o razón social"></div>
-      <div class="frow"><div class="fl"><label>Proyecto <span class="req">*</span></label><select class="fi" id="ni-project">${projOptions(ed?ed.projectId:undefined)}</select></div>
+      <div class="frow"><div class="fl"><label>Proyecto <span class="req">*</span></label><select class="fi" id="ni-project">${projOptions(ed?ed.projectId:(S.invProjId||undefined))}</select></div>
         <div class="fl"><label>Monto aportado ($) <span class="req">*</span></label><input class="fi" id="ni-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div></div>
       <div class="frow"><div class="fl"><label>Participación (%)</label><input class="fi" id="ni-pct" type="number" min="0" max="100" value="${ed?ed.pct:''}" placeholder="0"></div>
         <div class="fl"><label>Fecha del aporte</label><input class="fi" id="ni-date" type="date" value="${ed?(ed.date||''):today()}"></div></div>

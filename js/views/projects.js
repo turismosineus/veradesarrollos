@@ -140,8 +140,37 @@ function rFinanzasProy(p, dir){
         ${[['Gastado',p.spent,'#f97316'],['Proyectado',projected,'#a855f7'],['Presupuesto',p.budget,'#f59e0b'],['Venta est.',p.salePrice,'#22c55e']].map(([l,vv,c])=>`<div class="bar-wrap"><div class="bar-val">${fmtK(vv)}</div><div class="bar" style="height:${Math.round((vv/Math.max(p.spent,projected,p.budget,p.salePrice,1))*80)+10}px;background:${c}"></div><div class="bar-lbl">${l}</div></div>`).join('')}
       </div></div>
     </div>
-    ${dir ? chosenSec + pendingSec : ''}
-    ${dir?`<div class="sec"><h3>Inversores del proyecto</h3>${projInvest.length?`<table><thead><tr><th>Inversor</th><th>Monto aportado</th><th>Participación</th><th>Fecha</th></tr></thead><tbody>${projInvest.map(i=>`<tr><td>${esc(i.investor)}</td><td style="font-weight:500;color:var(--orange)">${fmt(i.amount)}</td><td><span class="badge bb">${i.pct}%</span></td><td>${i.date||''}</td></tr>`).join('')}</tbody></table>`:`<div style="color:var(--text3);font-size:13px">Sin inversores en este proyecto.</div>`}</div>`:''}`;
+    ${dir ? chosenSec + pendingSec : ''}`;
+}
+
+// Pestaña "Inversores" del proyecto: capital, participación, cobertura y retorno estimado por inversor.
+function rInversoresProy(p, dir){
+  const items = D.investments.filter(i => i.projectId != null ? i.projectId === p.id : i.project === p.name);
+  const capital = items.reduce((a,i)=>a+i.amount,0);
+  const pctTotal = items.reduce((a,i)=>a+(i.pct||0),0);
+  const gain = (p.salePrice||0) - (p.budget||0);
+  const cover = p.budget ? Math.min(100, Math.round(capital / p.budget * 100)) : 0;
+  const ret = i => gain * (i.pct||0) / 100;
+  return `
+    <div class="kpi-grid">
+      <div class="kpi"><i class="ti ti-cash"></i><div class="kpi-lbl">Capital invertido</div><div class="kpi-val">${fmtK(capital)}</div></div>
+      <div class="kpi"><i class="ti ti-chart-pie"></i><div class="kpi-lbl">Participación asignada</div><div class="kpi-val" style="color:${pctTotal>100?'var(--red)':'var(--text)'}">${pctTotal}%</div></div>
+      <div class="kpi"><i class="ti ti-shield-check"></i><div class="kpi-lbl">Cobertura del presupuesto</div><div class="kpi-val">${cover}%</div></div>
+      <div class="kpi"><i class="ti ti-trending-up"></i><div class="kpi-lbl">Ganancia a repartir (est.)</div><div class="kpi-val gr">${fmtK(gain)}</div></div>
+    </div>
+    <div class="sec" style="padding:.9rem 1.25rem">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px"><span>Capital reunido vs presupuesto del proyecto</span><span>${fmt(capital)} / ${fmt(p.budget)}</span></div>
+      <div class="prog-bar" style="height:10px"><div class="prog-fill" style="width:${cover}%;background:var(--green)"></div></div>
+      ${pctTotal>100?`<div style="font-size:12px;color:var(--red);margin-top:8px"><i class="ti ti-alert-triangle"></i> La participación asignada supera el 100% — revisá los porcentajes.</div>`:''}
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Inversores del proyecto</div>${dir?`<button class="btn-or sm" id="new-inv-proj"><i class="ti ti-plus"></i> Registrar aporte</button>`:''}</div>
+      ${items.length ? `<table><thead><tr><th>Inversor</th><th>Aporte</th><th>Participación</th><th>Retorno est.</th><th>Total a recibir</th><th>Fecha</th><th>Nota</th>${dir?'<th></th>':''}</tr></thead>
+      <tbody>${items.map(i=>`<tr><td style="font-weight:500">${esc(i.investor)}</td><td style="font-weight:500;color:var(--orange)">${fmt(i.amount)}</td><td><span class="badge bb">${i.pct||0}%</span></td><td style="color:var(--green)">${fmt(ret(i))}</td><td style="font-weight:600;color:var(--green)">${fmt(i.amount + ret(i))}</td><td>${i.date||''}</td><td style="color:var(--text2)">${esc(i.note||'-')}</td>${dir?`<td style="white-space:nowrap"><button class="link-btn" data-iedit="${i.id}" title="Editar"><i class="ti ti-edit"></i></button> <button class="tbl-del" data-idel="${i.id}"><i class="ti ti-trash"></i></button></td>`:''}</tr>`).join('')}</tbody>
+      <tfoot><tr><td style="padding:10px 1.25rem;font-weight:600;color:var(--text2)">TOTAL</td><td style="font-weight:700;color:var(--orange)">${fmt(capital)}</td><td><span class="badge bb">${pctTotal}%</span></td><td style="color:var(--green);font-weight:600">${fmt(items.reduce((a,i)=>a+ret(i),0))}</td><td style="color:var(--green);font-weight:700">${fmt(capital + items.reduce((a,i)=>a+ret(i),0))}</td><td colspan="${dir?3:2}"></td></tr></tfoot></table>`
+      : `<div style="text-align:center;padding:2rem;color:var(--text3)">Sin inversores en este proyecto. Registrá el primer aporte.</div>`}
+    </div>
+    <div style="font-size:11px;color:var(--text3);padding:0 4px">Retorno estimado = participación % × (precio de venta estimado − presupuesto). Se recalcula solo si cambiás esos valores en "Editar" proyecto.</div>`;
 }
 
 export function rProyectos(){
@@ -194,6 +223,7 @@ export function rProjD(){
   else if(tab==='3d') body = r3D(p, dir);
   else if(tab==='camara') body = rCamaras(p, dir);
   else if(tab==='finanzas') body = rFinanzasProy(p, dir);
+  else if(tab==='inversores') body = rInversoresProy(p, dir);
   return `
   <div class="topbar">
     <button class="back-btn" id="back"><i class="ti ti-arrow-left"></i> Proyectos</button>
@@ -207,6 +237,7 @@ export function rProjD(){
       <button class="tab ${tab==='3d'?'active':''}" data-tab="3d"><i class="ti ti-cube"></i> 3D y multimedia</button>
       <button class="tab ${tab==='camara'?'active':''}" data-tab="camara"><i class="ti ti-video"></i> Cámara</button>
       <button class="tab ${tab==='finanzas'?'active':''}" data-tab="finanzas"><i class="ti ti-chart-bar"></i> Finanzas</button>
+      ${dir?`<button class="tab ${tab==='inversores'?'active':''}" data-tab="inversores"><i class="ti ti-users"></i> Inversores</button>`:''}
     </div>${body}
   </div>`;
 }

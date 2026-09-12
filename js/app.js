@@ -100,13 +100,14 @@ function bind(){
   const open = (id, modal, pre) => el(id)?.addEventListener('click', () => { S.editId = null; ui.pendingFile = null; ui.pendingFiles = []; if(pre) pre(); S.modal = modal; render(); });
   open('new-proj', 'new-proj'); open('edit-proj', 'edit-proj'); open('new-prov', 'new-prov');
   open('new-order', 'new-order', () => { S.mi = [{desc:'',qty:'',unit:'u',price:''}]; });
-  open('new-inv', 'new-investor', () => { S.invName = ''; }); open('new-investor', 'new-investor', () => { S.invName = ''; });
+  open('new-inv', 'new-investor', () => { S.invName = ''; S.invProjId = null; }); open('new-investor', 'new-investor', () => { S.invName = ''; S.invProjId = null; });
+  open('new-inv-proj', 'new-investor', () => { S.invName = ''; S.invProjId = S.proj; });
   open('new-exp', 'new-exp'); open('new-liq', 'new-liquidacion'); open('new-receipt', 'new-receipt'); open('new-inv-doc', 'new-inv-doc');
   open('new-update', 'new-update'); open('new-plan', 'new-plan');
   open('new-budget', 'new-budget', () => { S.bdCtx = 'provider'; });
   open('new-budget-proj', 'new-budget', () => { S.bdCtx = 'project'; });
   open('new-media-link','new-media-link'); open('new-media-img','new-media-img'); open('new-media-vid','new-media-vid'); open('new-camera','new-camera');
-  document.querySelectorAll('[data-addapt]').forEach(x => x.addEventListener('click', () => { S.editId = null; S.invName = decodeURIComponent(x.dataset.addapt); S.modal = 'new-investor'; render(); }));
+  document.querySelectorAll('[data-addapt]').forEach(x => x.addEventListener('click', () => { S.editId = null; S.invProjId = null; S.invName = decodeURIComponent(x.dataset.addapt); S.modal = 'new-investor'; render(); }));
   document.querySelectorAll('[data-revopen]').forEach(x => x.addEventListener('click', () => { S.revCat = decodeURIComponent(x.dataset.revcat); S.revName = decodeURIComponent(x.dataset.revname); ui.pendingFile = null; S.modal = 'new-revision'; render(); }));
 
   // ── Abrir modales (edición) ──
