@@ -104,7 +104,7 @@ function rFinanzasProy(p, dir){
   const execs = chosen.map(b => ({ b, x: budgetExec(b) }));
   const projected = execs.reduce((a,e)=>a+e.x.estUsd,0);
   const diff = p.budget - projected;
-  const refBar = dir ? `<div class="sec" style="padding:.7rem 1.25rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px"><i class="ti ti-currency-dollar" style="color:var(--orange);font-size:18px"></i><span style="color:var(--text2)">Dólar de referencia para valuar saldos pendientes:</span><strong style="font-size:15px">${rr ? rr : '—'}</strong>${(!D.settings||!D.settings.refRate)&&rr?'<span class="badge bgr" title="Todavía no fijaste uno: se usa la última cotización cargada">última cargada</span>':''}${!rr?'<span class="badge ba">sin definir</span>':''}<button class="btn-sec" id="set-ref-rate" style="padding:4px 10px;font-size:12px;margin-left:auto"><i class="ti ti-edit"></i> Cambiar</button></div>` : '';
+  const refBar = '';  // el dólar para saldos sale solo del último gasto cargado
   const gastos = D.expenses.filter(e => e.projectId === p.id);
   const liqs = (D.liquidaciones||[]).filter(l => l.projectId === p.id);
   const tG = gastos.reduce((a,e)=>a+(e.usd||0),0), tL = liqs.reduce((a,l)=>a+(l.usd||0),0), tReg = tG + tL;
@@ -139,11 +139,11 @@ function rFinanzasProy(p, dir){
       ${execs.map(({b,x})=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}<div style="font-size:11px;color:var(--text3)">${esc(b.provider)}${b.note?' · '+esc(b.note):''}</div></td>
         <td style="font-weight:600">${fmtAmt(b.amount,b.currency)}</td>
         <td>${fmtAmt(x.paidNative,b.currency)}<div style="font-size:11px;color:var(--text3)">${fmtU(x.paidUsd)} · ${x.nPays} pago${x.nPays!==1?'s':''}</div></td>
-        <td>${fmtAmt(x.remainingNative,b.currency)}${x.remainingUsd!=null?`<div style="font-size:11px;color:var(--text3)">≈ ${fmtU(x.remainingUsd)} (ref.)</div>`:''}</td>
+        <td>${fmtAmt(x.remainingNative,b.currency)}${x.remainingUsd!=null?`<div style="font-size:11px;color:var(--text3)">≈ ${fmtU(x.remainingUsd)} (últ. dólar)</div>`:''}</td>
         <td style="min-width:90px"><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,x.pct)}%;background:${x.pct>100?'var(--red)':'var(--green)'}"></div></div><div style="font-size:11px;color:var(--text3);margin-top:3px">${x.pct}%</div></td>
-        <td style="font-weight:700;color:var(--green)">${fmtU(x.estUsd)}${x.needsRate?' <span class="badge ba" title="Falta el dólar de referencia para valuar el saldo">falta dólar ref.</span>':''}</td>
+        <td style="font-weight:700;color:var(--green)">${fmtU(x.estUsd)}${x.needsRate?' <span class="badge bgr" title="Se va a valuar cuando cargues el primer gasto con cotización">saldo sin valuar aún</span>':''}</td>
         <td>${fileBtns(b, b.name||'presupuesto')}</td>${dir?`<td><button class="link-btn" data-bdunchoose="${b.id}" title="Quitar de los elegidos"><i class="ti ti-arrow-back-up"></i></button></td>`:''}</tr>`).join('')}
-      </tbody><tfoot><tr><td colspan="5" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL PROYECTADO (pagado a dólar histórico + saldo a dólar de referencia)</td><td style="font-weight:700;color:var(--orange);font-size:15px">${fmtU(projected)}</td><td colspan="${dir?2:1}"></td></tr></tfoot></table>`
+      </tbody><tfoot><tr><td colspan="5" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL PROYECTADO <span style="font-weight:400;font-size:11px">(pagado al dólar de cada pago + saldo al último dólar cargado${rr?': '+rr:''})</span></td><td style="font-weight:700;color:var(--orange);font-size:15px">${fmtU(projected)}</td><td colspan="${dir?2:1}"></td></tr></tfoot></table>`
     : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Todavía no elegiste ningún presupuesto. Elegí de "Presupuestos recibidos" y se suman acá como gasto proyectado.</div>`}</div>`;
   const concepts = [...new Set(pending.map(b => b.concept || 'Sin concepto'))];
   const pendRows = concepts.map(c => {

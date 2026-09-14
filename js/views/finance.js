@@ -17,7 +17,7 @@ export function rFinanzas(){
   const tVenta = rows.reduce((a,r)=>a+(r.p.salePrice||0),0), tPres = rows.reduce((a,r)=>a+(r.p.budget||0),0);
   return `
   <div class="topbar"><div><h1>FINANZAS</h1><div class="topbar-sub">Resumen por obra en USD · ${rows.length} proyecto${rows.length!==1?'s':''}</div></div>
-    <div class="topbar-actions"><span style="font-size:12px;color:var(--text2)">Dólar de referencia: <strong>${refRate()||'—'}</strong></span><button class="btn-sec" id="set-ref-rate" style="padding:5px 10px;font-size:12px"><i class="ti ti-edit"></i> Cambiar</button></div></div>
+    <div class="topbar-actions"><span style="font-size:12px;color:var(--text3)">Saldos pendientes valuados al último dólar cargado: <strong style="color:var(--text)">${refRate()||'—'}</strong> <button class="link-btn" id="set-ref-rate" style="font-size:11px" title="Solo si querés forzar otro valor">ajustar</button></span></div></div>
   <div class="content">
     <div class="kpi-grid">
       <div class="kpi"><i class="ti ti-file-dollar"></i><div class="kpi-lbl">Gasto proyectado</div><div class="kpi-val">${fmtKU(T('proyectado'))}</div></div>
