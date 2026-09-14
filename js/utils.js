@@ -33,7 +33,7 @@ export function aggInvestors(){
   const map = {};
   D.investments.forEach(i => {
     if(!map[i.investor]) map[i.investor] = { name:i.investor, total:0, count:0, projects:new Set() };
-    const m = map[i.investor]; m.total += i.amount; m.count++; m.projects.add(i.project);
+    const m = map[i.investor]; m.total += (i.usd||0); m.count++; m.projects.add(i.project);
   });
   return Object.values(map).sort((a,b) => b.total - a.total);
 }
@@ -66,4 +66,20 @@ export function camType(url, forced){
   if(/\.(jpe?g|png)(\?|$)/i.test(url||'') || /snapshot|cgi-bin|\/shot\.jpg/i.test(url||'')) return 'image';
   if(/\.(mp4|webm)(\?|$)/i.test(url||'')) return 'video';
   return 'iframe';
+}
+
+// ── Moneda ──
+// Convención: el negocio se mide en USD; los movimientos pueden cargarse en ARS con la cotización del día.
+export const fmtU  = n => 'US$ ' + Math.round(n||0).toLocaleString('es-AR');
+export const fmtKU = n => { n = n||0; if(!n) return 'US$ 0'; const a = Math.abs(n); return a >= 1000000 ? 'US$ '+(n/1000000).toFixed(2)+'M' : (a >= 10000 ? 'US$ '+(n/1000).toFixed(0)+'K' : 'US$ '+Math.round(n).toLocaleString('es-AR')); };
+export const fmtAmt = (n, cur) => cur === 'USD' ? fmtU(n) : fmt(n) + ' ARS';
+// Equivalente en USD de un movimiento (null si está en ARS sin cotización).
+export const usdOf = x => x.currency === 'USD' ? (x.amount||0) : (x.rate ? (x.amount||0) / x.rate : null);
+// Celda "monto original + equivalente USD" para tablas.
+export const amtCell = x => fmtAmt(x.amount, x.currency) + (x.currency === 'USD' ? '' : (x.usd != null ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU(x.usd) + ' @ ' + x.rate + '</div>' : '<div style="font-size:11px;color:var(--amber)">sin cotización</div>'));
+// Última cotización usada (para precargar el formulario).
+export function lastRate(){
+  const all = [...D.expenses, ...(D.liquidaciones||[]), ...D.investments, ...D.providers.flatMap(p => p.budgets||[])].filter(x => x.rate);
+  all.sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')) || (b.id||0) - (a.id||0));
+  return all.length ? all[0].rate : '';
 }

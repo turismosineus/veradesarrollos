@@ -37,6 +37,8 @@ async function run(fn, okMsg){
 }
 
 // Dado el ID elegido en un select, devuelve {projectId, project(nombre)} (o nulos si no eligió).
+// Lee moneda + cotización de un formulario; devuelve null si falta la cotización en pesos.
+const curOf = px => { const currency = v(px+'-cur') || 'ARS'; const rate = currency === 'USD' ? null : nv(px+'-rate'); if(currency === 'ARS' && !rate){ toast('Ingresá la cotización del dólar de ese día'); return null; } return { currency, rate }; };
 const pidOf = id => { const p = D.projects.find(x => x.id == id); return p ? { projectId:p.id, project:p.name } : { projectId:null, project:'' }; };
 const closeModal = () => { S.modal = null; S.editId = null; ui.pendingFile = null; ui.pendingFiles = []; render(); };
 
@@ -157,7 +159,8 @@ function bind(){
   el('save-investor')?.addEventListener('click', () => {
     const name = v('ni-name'); if(!name){ toast('Falta el nombre del inversor'); return; }
     if(!nv('ni-amount')){ toast('Ingresá el monto'); return; }
-    const obj = { investor:name, ...pidOf(v('ni-project')), amount:nv('ni-amount'), pct:nv('ni-pct'), date:v('ni-date')||today(), note:v('ni-note') };
+    const money = curOf('ni'); if(!money) return;
+    const obj = { investor:name, ...pidOf(v('ni-project')), amount:nv('ni-amount'), ...money, pct:nv('ni-pct'), date:v('ni-date')||today(), note:v('ni-note') };
     const editId = S.editId; S.modal = null; S.editId = null;
     if(editId){ if(S.page === 'inv-d') S.inv = name; run(() => db.updateInvestment(editId, obj), 'Aporte actualizado'); }
     else run(() => db.addInvestment(obj), 'Aporte registrado');
@@ -167,8 +170,9 @@ function bind(){
   el('save-exp')?.addEventListener('click', () => {
     const concept = v('ne-concept'); if(!concept){ toast('Falta el concepto'); return; }
     const amount = nv('ne-amount'); if(!amount){ toast('Ingresá el monto'); return; }
+    const money = curOf('ne'); if(!money) return;
     const pv = D.providers.find(x => x.id == v('ne-provider'));
-    const obj = { concept, category:v('ne-cat')||'otros', amount, date:v('ne-date')||today(), providerId:pv?pv.id:null, provider:pv?pv.name:'-', ...pidOf(v('ne-project')) };
+    const obj = { concept, category:v('ne-cat')||'otros', amount, ...money, date:v('ne-date')||today(), providerId:pv?pv.id:null, provider:pv?pv.name:'-', ...pidOf(v('ne-project')) };
     const f = ui.pendingFile, cur = S.editId ? D.expenses.find(x => x.id == S.editId) : null;
     S.modal = null; S.editId = null; ui.pendingFile = null;
     if(cur) run(() => db.updateExpense(cur.id, { ...obj, mime:cur.mime }, f, cur.fileId), 'Gasto actualizado');
@@ -179,7 +183,8 @@ function bind(){
   el('save-liq')?.addEventListener('click', () => {
     const pv = D.providers.find(x => x.id == v('nl-prov')); if(!pv){ toast('Elegí el proveedor / profesional que cobra'); return; }
     const amount = nv('nl-amount'); if(!amount){ toast('Ingresá el monto'); return; }
-    const obj = { providerId:pv.id, worker:pv.name, trade:pv.rubro||pv.kind||'', amount, date:v('nl-date')||today(), ...pidOf(v('nl-project')), note:v('nl-note') };
+    const money = curOf('nl'); if(!money) return;
+    const obj = { providerId:pv.id, worker:pv.name, trade:pv.rubro||pv.kind||'', amount, ...money, date:v('nl-date')||today(), ...pidOf(v('nl-project')), note:v('nl-note') };
     const editId = S.editId; S.modal = null; S.editId = null;
     if(editId) run(() => db.updateLiquidacion(editId, obj), 'Liquidación actualizada');
     else run(() => db.addLiquidacion(obj), 'Liquidación registrada');
@@ -204,7 +209,8 @@ function bind(){
     if(fromProj){ prov = +v('bd-prov') || null; if(!prov){ toast('Elegí el proveedor'); return; } projInfo = pidOf(S.proj); }
     else projInfo = pidOf(v('bd-project'));
     const pv = D.providers.find(p => p.id === prov); const cur = (!fromProj && editId) ? ((pv&&pv.budgets)||[]).find(b => b.id == editId) : null;
-    const meta = { concept, name:f ? f.name : (cur ? cur.name : concept), amount, ...projInfo, date:v('bd-date')||today(), note:v('bd-note') };
+    const money = curOf('bd'); if(!money) return;
+    const meta = { concept, name:f ? f.name : (cur ? cur.name : concept), amount, ...money, ...projInfo, date:v('bd-date')||today(), note:v('bd-note') };
     ui.pendingFile = null; S.modal = null; S.editId = null;
     if(cur) run(() => db.updateBudget(cur.id, { ...meta, mime:cur.mime }, f, cur.fileId), 'Presupuesto actualizado');
     else run(() => db.addBudget(prov, meta, f), 'Presupuesto cargado');

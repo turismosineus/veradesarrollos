@@ -4,6 +4,7 @@
 import { supabase } from './supabase.js';
 import { D } from './state.js';
 import { uploadFile, removeFile } from './files.js';
+import { usdOf } from './utils.js';
 
 const d = x => x || null;
 const num = x => Number(x) || 0;
@@ -13,11 +14,11 @@ const mapProject = r => ({ id:r.id, name:r.name, address:r.address, status:r.sta
 const projectRow = o => ({ name:o.name, address:o.address, status:o.status, progress:o.progress, start_date:d(o.startDate), end_date:d(o.endDate), sale_price:num(o.salePrice), budget:num(o.budget), description:o.description, updates:o.updates||[], model3d:o.model3d||null, stream_url:o.streamUrl||null });
 const mapOrder   = r => ({ id:r.id, providerId:r.provider_id, projectId:r.project_id, project:r.project, status:r.status, items:r.items||[], date:r.date });
 const mapReceipt = r => ({ id:r.id, name:r.name, fileId:r.file_path, mime:r.mime, amount:num(r.amount), date:r.date, projectId:r.project_id, project:r.project, orderId:r.order_id, note:r.note });
-const mapBudget  = b => ({ id:b.id, providerId:b.provider_id, name:b.name, concept:b.concept, fileId:b.file_path, mime:b.mime, amount:num(b.amount), date:b.date, projectId:b.project_id, project:b.project, status:b.status||'pendiente', note:b.note });
+const mapBudget  = b => ({ id:b.id, providerId:b.provider_id, name:b.name, concept:b.concept, fileId:b.file_path, mime:b.mime, amount:num(b.amount), currency:b.currency||'ARS', rate:num(b.rate)||null, date:b.date, projectId:b.project_id, project:b.project, status:b.status||'pendiente', note:b.note });
 const mapDoc     = r => ({ id:r.id, investor:r.investor, name:r.name, fileId:r.file_path, mime:r.mime, kind:r.kind, date:r.date, note:r.note });
-const mapExpense = e => ({ id:e.id, concept:e.concept, category:e.category, amount:num(e.amount), date:e.date, providerId:e.provider_id, provider:e.provider, projectId:e.project_id, project:e.project, fileId:e.file_path, mime:e.mime });
-const mapLiq     = l => ({ id:l.id, providerId:l.provider_id, worker:l.worker, trade:l.trade, amount:num(l.amount), date:l.date, projectId:l.project_id, project:l.project, note:l.note });
-const mapInv     = i => ({ id:i.id, investor:i.investor, projectId:i.project_id, project:i.project, amount:num(i.amount), pct:num(i.pct), date:i.date, note:i.note });
+const mapExpense = e => ({ id:e.id, concept:e.concept, category:e.category, amount:num(e.amount), currency:e.currency||'ARS', rate:num(e.rate)||null, date:e.date, providerId:e.provider_id, provider:e.provider, projectId:e.project_id, project:e.project, fileId:e.file_path, mime:e.mime });
+const mapLiq     = l => ({ id:l.id, providerId:l.provider_id, worker:l.worker, trade:l.trade, amount:num(l.amount), currency:l.currency||'ARS', rate:num(l.rate)||null, date:l.date, projectId:l.project_id, project:l.project, note:l.note });
+const mapInv     = i => ({ id:i.id, investor:i.investor, projectId:i.project_id, project:i.project, amount:num(i.amount), currency:i.currency||'USD', rate:num(i.rate)||null, pct:num(i.pct), date:i.date, note:i.note });
 const mapPlan    = p => ({ id:p.id, projectId:p.project_id, category:p.category, name:p.name, revision:p.revision, status:p.status, current:p.current, uploadedBy:p.uploaded_by, fileId:p.file_path, mime:p.mime, date:p.date, note:p.note });
 const mapMedia   = m => ({ id:m.id, projectId:m.project_id, kind:m.kind, title:m.title, url:m.url, fileId:m.file_path, mime:m.mime, note:m.note, uploadedBy:m.uploaded_by, date:m.date });
 const mapCamera  = c => ({ id:c.id, projectId:c.project_id, name:c.name, url:c.url, type:c.type||'auto' });
@@ -38,23 +39,24 @@ export async function loadAll(){
   const pname = (id, txt) => (id != null && projById[id]) ? projById[id].name : (txt || '');
   const vname = (id, txt) => (id != null && provById[id]) ? provById[id].name : (txt || '-');
 
-  D.expenses      = (exp.data||[]).map(mapExpense).map(e => ({ ...e, project:pname(e.projectId, e.project), provider:vname(e.providerId, e.provider) }));
-  D.liquidaciones = (liq.data||[]).map(mapLiq).map(l => ({ ...l, project:pname(l.projectId, l.project), worker:vname(l.providerId, l.worker) }));
-  D.investments   = (inv.data||[]).map(mapInv).map(i => ({ ...i, project:pname(i.projectId, i.project) }));
+  const withUsd = x => ({ ...x, usd: usdOf(x) });
+  D.expenses      = (exp.data||[]).map(mapExpense).map(e => withUsd({ ...e, project:pname(e.projectId, e.project), provider:vname(e.providerId, e.provider) }));
+  D.liquidaciones = (liq.data||[]).map(mapLiq).map(l => withUsd({ ...l, project:pname(l.projectId, l.project), worker:vname(l.providerId, l.worker) }));
+  D.investments   = (inv.data||[]).map(mapInv).map(i => withUsd({ ...i, project:pname(i.projectId, i.project) }));
   D.investorDocs  = (docs.data||[]).map(mapDoc);
 
   (ord.data||[]).forEach(o => { const p = provById[o.provider_id]; if(p) p.orders.push({ ...mapOrder(o), project:pname(o.project_id, o.project) }); });
   (rec.data||[]).forEach(r => { const p = provById[r.provider_id]; if(p) p.receipts.push({ ...mapReceipt(r), project:pname(r.project_id, r.project) }); });
-  (bud.data||[]).forEach(b => { const p = provById[b.provider_id]; if(p) p.budgets.push({ ...mapBudget(b), project:pname(b.project_id, b.project) }); });
+  (bud.data||[]).forEach(b => { const p = provById[b.provider_id]; if(p) p.budgets.push(withUsd({ ...mapBudget(b), project:pname(b.project_id, b.project) })); });
   (pln.data||[]).forEach(r => { const p = projById[r.project_id]; if(p) p.plans.push(mapPlan(r)); });
   (med.data||[]).forEach(r => { const p = projById[r.project_id]; if(p) p.media.push(mapMedia(r)); });
   (cam.data||[]).forEach(r => { const p = projById[r.project_id]; if(p) p.cameras.push(mapCamera(r)); });
 
-  // "Gastado" SIEMPRE calculado: gastos + liquidaciones del proyecto.
+  // "Gastado" SIEMPRE calculado, en USD: gastos + liquidaciones del proyecto (solo los que tienen cotización).
   D.projects.forEach(p => {
-    const g = D.expenses.filter(e => e.projectId === p.id).reduce((a,e)=>a+e.amount,0);
-    const l = D.liquidaciones.filter(x => x.projectId === p.id).reduce((a,x)=>a+x.amount,0);
-    p.spent = g + l;
+    const movs = [...D.expenses.filter(e => e.projectId === p.id), ...D.liquidaciones.filter(x => x.projectId === p.id)];
+    p.spent = movs.reduce((a,m)=>a+(m.usd||0),0);
+    p.spentUnknown = movs.filter(m => m.usd == null).length;   // movimientos en ARS sin cotización
   });
 }
 
@@ -96,13 +98,13 @@ export async function advanceOrder(id, status){ const { error } = await supabase
 export async function addBudget(providerId, meta, file){
   let path = null, mime = null;
   if(file){ path = await uploadFile(file); mime = file.type; }
-  const { error } = await supabase.from('budgets').insert({ provider_id:providerId, name:meta.name, concept:meta.concept, file_path:path, mime, amount:num(meta.amount), date:d(meta.date), project_id:meta.projectId||null, project:d(meta.project), status:'pendiente', note:meta.note });
+  const { error } = await supabase.from('budgets').insert({ provider_id:providerId, name:meta.name, concept:meta.concept, file_path:path, mime, amount:num(meta.amount), currency:meta.currency||'ARS', rate:meta.rate||null, date:d(meta.date), project_id:meta.projectId||null, project:d(meta.project), status:'pendiente', note:meta.note });
   if(error){ if(path) await removeFile(path); throw error; }
 }
 export async function updateBudget(id, o, file, oldPath){
   let file_path = oldPath || null, mime = o.mime || null;
   if(file){ file_path = await uploadFile(file); mime = file.type; }
-  const { error } = await supabase.from('budgets').update({ name:o.name, concept:o.concept, file_path, mime, amount:num(o.amount), date:d(o.date), project_id:o.projectId||null, project:d(o.project), note:o.note }).eq('id', id);
+  const { error } = await supabase.from('budgets').update({ name:o.name, concept:o.concept, file_path, mime, amount:num(o.amount), currency:o.currency||'ARS', rate:o.rate||null, date:d(o.date), project_id:o.projectId||null, project:d(o.project), note:o.note }).eq('id', id);
   if(error){ if(file && file_path) await removeFile(file_path); throw error; }
   if(file && oldPath) await removeFile(oldPath);
 }
@@ -116,7 +118,7 @@ export async function setBudgetStatus(id, status){ const { error } = await supab
 export async function deleteBudget(id, filePath){ const { error } = await supabase.from('budgets').delete().eq('id', id); if(error) throw error; if(filePath) await removeFile(filePath); }
 
 // ── Gastos ──
-const expenseRow = (o, file_path, mime) => ({ concept:o.concept, category:o.category, amount:num(o.amount), date:d(o.date), provider_id:o.providerId||null, provider:o.provider||'-', project_id:o.projectId||null, project:d(o.project), file_path, mime });
+const expenseRow = (o, file_path, mime) => ({ concept:o.concept, category:o.category, amount:num(o.amount), currency:o.currency||'ARS', rate:o.rate||null, date:d(o.date), provider_id:o.providerId||null, provider:o.provider||'-', project_id:o.projectId||null, project:d(o.project), file_path, mime });
 export async function addExpense(o, file){
   let file_path = null, mime = null;
   if(file){ file_path = await uploadFile(file); mime = file.type; }
@@ -133,13 +135,13 @@ export async function updateExpense(id, o, file, oldPath){
 export async function deleteExpense(id, filePath){ const { error } = await supabase.from('expenses').delete().eq('id', id); if(error) throw error; if(filePath) await removeFile(filePath); }
 
 // ── Liquidaciones ──
-const liqRow = o => ({ provider_id:o.providerId||null, worker:o.worker, trade:o.trade, amount:num(o.amount), date:d(o.date), project_id:o.projectId||null, project:d(o.project), note:o.note });
+const liqRow = o => ({ provider_id:o.providerId||null, worker:o.worker, trade:o.trade, amount:num(o.amount), currency:o.currency||'ARS', rate:o.rate||null, date:d(o.date), project_id:o.projectId||null, project:d(o.project), note:o.note });
 export async function addLiquidacion(o){ const { error } = await supabase.from('liquidaciones').insert(liqRow(o)); if(error) throw error; }
 export async function updateLiquidacion(id, o){ const { error } = await supabase.from('liquidaciones').update(liqRow(o)).eq('id', id); if(error) throw error; }
 export async function deleteLiquidacion(id){ const { error } = await supabase.from('liquidaciones').delete().eq('id', id); if(error) throw error; }
 
 // ── Inversiones ──
-const invRow = o => ({ investor:o.investor, project_id:o.projectId||null, project:d(o.project), amount:num(o.amount), pct:num(o.pct), date:d(o.date), note:o.note });
+const invRow = o => ({ investor:o.investor, project_id:o.projectId||null, project:d(o.project), amount:num(o.amount), currency:o.currency||'USD', rate:o.rate||null, pct:num(o.pct), date:d(o.date), note:o.note });
 export async function addInvestment(o){ const { error } = await supabase.from('investments').insert(invRow(o)); if(error) throw error; }
 export async function updateInvestment(id, o){ const { error } = await supabase.from('investments').update(invRow(o)).eq('id', id); if(error) throw error; }
 export async function deleteInvestment(id){ const { error } = await supabase.from('investments').delete().eq('id', id); if(error) throw error; }

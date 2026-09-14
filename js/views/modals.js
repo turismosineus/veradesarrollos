@@ -2,7 +2,11 @@
 import { S, D } from '../state.js';
 import { UNITS, EXP_CATS, OFICIOS, PLAN_CATS, PROV_KINDS } from '../constants.js';
 const laborFirst = p => (p.kind==='mano de obra'||p.kind==='profesional') ? 0 : 1;
-import { esc, today, nextOrderNo, projOptions, fmt } from '../utils.js';
+import { esc, today, nextOrderNo, projOptions, fmt, lastRate } from '../utils.js';
+// Campos "Moneda + Cotización" reutilizables. La cotización solo se pide si es en pesos.
+const curFields = (px, ed, defCur) => { const cur = ed ? (ed.currency||defCur) : defCur, rate = ed ? (ed.rate||'') : (lastRate()||'');
+  return `<div class="frow"><div class="fl"><label>Moneda</label><select class="fi" id="${px}-cur" onchange="document.getElementById('${px}-rate-wrap').style.display=this.value==='USD'?'none':''"><option value="ARS" ${cur==='ARS'?'selected':''}>Pesos (ARS)</option><option value="USD" ${cur==='USD'?'selected':''}>Dólares (USD)</option></select></div>
+    <div class="fl" id="${px}-rate-wrap" style="${cur==='USD'?'display:none':''}"><label>Cotización del dólar ese día <span class="req">*</span></label><input class="fi" id="${px}-rate" type="number" step="0.01" min="0" value="${rate}" placeholder="Ej. 1350"><div style="font-size:11px;color:#6b7280;margin-top:4px">Pesos por 1 USD. Sirve para calcular el equivalente en dólares.</div></div></div>`; };
 
 const drop = (prefix, label, hint, multi, accept) => `
   <input type="file" id="${prefix}-file" ${multi?'multiple':''} accept="${accept||'.pdf,.jpg,.jpeg,.png,.webp,image/*,application/pdf'}" style="display:none">
@@ -22,8 +26,8 @@ export function rModal(){
       <div class="fl"><label>Dirección / Ubicación <span class="req">*</span></label><input class="fi" id="np-addr" value="${ed?esc(ed.address):''}" placeholder="Calle, número, localidad, provincia"></div>
       <div class="frow"><div class="fl"><label>Estado</label><select class="fi" id="np-status">${[['planificacion','Planificación'],['construccion','En construcción'],['pausado','Pausado'],['finalizado','Finalizado']].map(([k,l])=>`<option value="${k}" ${ed&&ed.status===k?'selected':''}>${l}</option>`).join('')}</select></div>
         <div class="fl"><label>Avance de obra (%)</label><input class="fi" id="np-prog" type="number" min="0" max="100" value="${ed?ed.progress:0}"></div></div>
-      <div class="frow"><div class="fl"><label>Presupuesto total ($) <span class="req">*</span></label><input class="fi" id="np-budget" type="number" value="${ed?ed.budget:''}" placeholder="0"></div>
-        <div class="fl"><label>Precio de venta estimado ($)</label><input class="fi" id="np-sale" type="number" value="${ed?ed.salePrice:''}" placeholder="0"></div></div>
+      <div class="frow"><div class="fl"><label>Presupuesto total (USD) <span class="req">*</span></label><input class="fi" id="np-budget" type="number" value="${ed?ed.budget:''}" placeholder="0"></div>
+        <div class="fl"><label>Precio de venta estimado (USD)</label><input class="fi" id="np-sale" type="number" value="${ed?ed.salePrice:''}" placeholder="0"></div></div>
       <div class="frow"><div class="fl"><label>Fecha de inicio</label><input class="fi" id="np-start" type="date" value="${ed?ed.startDate||'':''}"></div>
         <div class="fl"><label>Fecha de entrega estimada</label><input class="fi" id="np-end" type="date" value="${ed?ed.endDate||'':''}"></div></div>
       <div style="font-size:11px;color:#6b7280;margin:-6px 0 12px">El "gastado" ya no se carga a mano: se calcula solo con los gastos y liquidaciones del proyecto.</div>
@@ -63,7 +67,8 @@ export function rModal(){
     return shell(ed?'Editar aporte':'Registrar aporte de inversor', 'Ingresá los datos del aporte', `
       <div class="fl"><label>Nombre del inversor <span class="req">*</span></label><input class="fi" id="ni-name" value="${esc(pre)}" placeholder="Nombre completo o razón social"></div>
       <div class="frow"><div class="fl"><label>Proyecto <span class="req">*</span></label><select class="fi" id="ni-project">${projOptions(ed?ed.projectId:(S.invProjId||undefined))}</select></div>
-        <div class="fl"><label>Monto aportado ($) <span class="req">*</span></label><input class="fi" id="ni-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div></div>
+        <div class="fl"><label>Monto aportado <span class="req">*</span></label><input class="fi" id="ni-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div></div>
+      ${curFields('ni', ed, 'USD')}
       <div class="frow"><div class="fl"><label>Participación (%)</label><input class="fi" id="ni-pct" type="number" min="0" max="100" value="${ed?ed.pct:''}" placeholder="0"></div>
         <div class="fl"><label>Fecha del aporte</label><input class="fi" id="ni-date" type="date" value="${ed?(ed.date||''):today()}"></div></div>
       <div class="fl"><label>Notas</label><textarea class="fi" id="ni-note" placeholder="Condiciones, porcentaje acordado, etc.">${ed?esc(ed.note||''):''}</textarea></div>`,
@@ -75,9 +80,10 @@ export function rModal(){
     return shell(ed?'Editar gasto':'Registrar gasto', 'Compra de materiales, equipos, servicios, etc.', `
       <div class="fl"><label>Concepto <span class="req">*</span></label><input class="fi" id="ne-concept" value="${ed?esc(ed.concept):''}" placeholder="Descripción del gasto"></div>
       <div class="frow"><div class="fl"><label>Categoría</label><select class="fi" id="ne-cat"><option value="">Seleccioná categoría</option>${EXP_CATS.map(c=>`<option ${ed&&ed.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
-        <div class="fl"><label>Monto ($) <span class="req">*</span></label><input class="fi" id="ne-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div></div>
+        <div class="fl"><label>Monto <span class="req">*</span></label><input class="fi" id="ne-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div></div>
       <div class="frow"><div class="fl"><label>Proyecto</label><select class="fi" id="ne-project">${projOptions(ed?ed.projectId:(S.expProjId||undefined))}</select></div>
         <div class="fl"><label>Proveedor</label><select class="fi" id="ne-provider"><option value="">— Sin proveedor —</option>${D.providers.map(p=>`<option value="${p.id}" ${ed&&ed.providerId==p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div></div>
+      ${curFields('ne', ed, 'ARS')}
       <div class="fl"><label>Fecha del gasto</label><input class="fi" id="ne-date" type="date" value="${ed?(ed.date||''):today()}"></div>
       <div class="fl"><label>Factura ${ed&&ed.fileId?'(ya hay una cargada — elegí otra solo si querés reemplazarla)':'(opcional)'}</label>${drop('ex', 'Adjuntar factura (PDF o imagen)', '', false)}</div>`,
       'save-exp', ed?'Guardar cambios':'Registrar gasto');
@@ -87,7 +93,8 @@ export function rModal(){
     const ed = S.editId ? (D.liquidaciones||[]).find(x=>x.id==S.editId) : null;
     return shell(ed?'Editar liquidación':'Registrar liquidación', 'Pago de mano de obra (electricista, albañil, arquitecto, etc.)', `
       <div class="fl"><label>Proveedor / Profesional que cobra <span class="req">*</span></label><select class="fi" id="nl-prov"><option value="">— Elegí quién cobra —</option>${[...D.providers].sort((a,b)=>laborFirst(a)-laborFirst(b)).map(p=>`<option value="${p.id}" ${ed&&(ed.providerId==p.id||(!ed.providerId&&ed.worker===p.name))?'selected':''}>${esc(p.name)} — ${esc(p.rubro||'')} (${esc(p.kind||'materiales')})</option>`).join('')}</select><div style="font-size:11px;color:#6b7280;margin-top:4px">Si no aparece, cargalo primero en <b>Proveedores</b> como "mano de obra" o "profesional".</div></div>
-      <div class="fl"><label>Monto ($) <span class="req">*</span></label><input class="fi" id="nl-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
+      <div class="fl"><label>Monto <span class="req">*</span></label><input class="fi" id="nl-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
+      ${curFields('nl', ed, 'ARS')}
       <div class="frow"><div class="fl"><label>Proyecto</label><select class="fi" id="nl-project">${projOptions(ed?ed.projectId:(S.expProjId||undefined))}</select></div>
         <div class="fl"><label>Fecha</label><input class="fi" id="nl-date" type="date" value="${ed?(ed.date||''):today()}"></div></div>
       <div class="fl"><label>Nota</label><input class="fi" id="nl-note" value="${ed?esc(ed.note||''):''}" placeholder="Ej. quincena, etapa de obra, etc."></div>`,
@@ -115,8 +122,9 @@ export function rModal(){
       ${fromProj ? `<div class="fl"><label>Proveedor <span class="req">*</span></label><select class="fi" id="bd-prov"><option value="">— Elegí quién presupuesta —</option>${D.providers.map(p=>`<option value="${p.id}">${esc(p.name)} — ${esc(p.rubro||'')} (${esc(p.kind||'materiales')})</option>`).join('')}</select></div>` : ''}
       <div class="fl"><label>Concepto <span class="req">*</span></label><input class="fi" id="bd-concept" value="${ed?esc(ed.concept||''):''}" placeholder="Ej. Aberturas, Instalación eléctrica, Hierro..."><div style="font-size:11px;color:#6b7280;margin-top:4px">Usá el mismo concepto en distintos proveedores para poder compararlos.</div></div>
       <div class="fl"><label>Archivo ${ed&&ed.fileId?'(ya hay uno cargado — elegí otro solo si querés reemplazarlo)':'(opcional)'}</label>${drop('bd', 'Arrastrá el PDF o hacé click', '', false)}</div>
-      <div class="frow"><div class="fl"><label>Monto ($) <span class="req">*</span></label><input class="fi" id="bd-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
+      <div class="frow"><div class="fl"><label>Monto <span class="req">*</span></label><input class="fi" id="bd-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
         ${fromProj ? '' : `<div class="fl"><label>Proyecto</label><select class="fi" id="bd-project"><option value="">— Sin proyecto —</option>${projOptions(ed?ed.projectId:undefined)}</select></div>`}</div>
+      ${curFields('bd', ed, 'ARS')}
       <div class="frow"><div class="fl"><label>Fecha</label><input class="fi" id="bd-date" type="date" value="${ed?(ed.date||''):today()}"></div>
         <div class="fl"><label>Nota</label><input class="fi" id="bd-note" value="${ed?esc(ed.note||''):''}" placeholder="Validez, condiciones, etc."></div></div>`,
       'save-budget', ed?'Guardar cambios':'Guardar presupuesto');

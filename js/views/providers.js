@@ -1,14 +1,14 @@
 // Proveedores: listado + comparativa de presupuestos, detalle (órdenes, comprobantes, presupuestos) y orden.
 import { S, D } from '../state.js';
 import { OSTATUS, OL, OB, PROV_KINDS } from '../constants.js';
-import { esc, fmt, fmtK, oTotal } from '../utils.js';
+import { esc, fmt, fmtK, fmtU, amtCell, oTotal } from '../utils.js';
 
 const budgetBadge = s => s==='aprobado' ? '<span class="badge bg">aprobado</span>' : (s==='rechazado' ? '<span class="badge br">rechazado</span>' : '<span class="badge ba">pendiente</span>');
 
 export function rProveedores(){
   const filt = S.provFilter || 'todos';
   const list = filt==='todos' ? D.providers : D.providers.filter(p => (p.kind||'materiales')===filt);
-  const liqOf = p => (D.liquidaciones||[]).filter(l => l.providerId==p.id || (!l.providerId && l.worker===p.name)).reduce((a,l)=>a+l.amount,0);
+  const liqOf = p => (D.liquidaciones||[]).filter(l => l.providerId==p.id || (!l.providerId && l.worker===p.name)).reduce((a,l)=>a+(l.usd||0),0);
   return `
   <div class="topbar"><div><h1>PROVEEDORES</h1><div class="topbar-sub">${D.providers.length} registrados</div></div>
     <div class="topbar-actions"><button class="btn-or" id="new-prov"><i class="ti ti-plus"></i> Nuevo proveedor</button></div></div>
@@ -18,7 +18,7 @@ export function rProveedores(){
     <table><thead><tr><th>Nombre</th><th>Tipo</th><th>Rubro</th><th>Contacto</th><th>Compras</th><th>Liquidado</th><th>Presup.</th></tr></thead>
     <tbody>${list.length ? list.map(p=>`<tr class="clickable" data-oprov="${p.id}">
       <td style="font-weight:500">${esc(p.name)}</td><td><span class="badge bgr">${esc(p.kind||'materiales')}</span></td><td><span class="badge bb">${esc(p.rubro)}</span></td><td>${esc(p.contact)}</td>
-      <td style="color:var(--orange);font-weight:500">${fmt(p.orders.reduce((a,o)=>a+oTotal(o),0))}</td><td style="color:var(--green);font-weight:500">${fmt(liqOf(p))}</td><td>${(p.budgets||[]).length}</td></tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem">Sin proveedores en esta categoría.</td></tr>`}</tbody></table>
+      <td style="color:var(--orange);font-weight:500">${fmt(p.orders.reduce((a,o)=>a+oTotal(o),0))}</td><td style="color:var(--green);font-weight:500">${fmtU(liqOf(p))}</td><td>${(p.budgets||[]).length}</td></tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem">Sin proveedores en esta categoría.</td></tr>`}</tbody></table>
   </div></div>`;
 }
 
@@ -34,7 +34,7 @@ export function rProvD(){
         <div class="stat-row"><span class="sl"><i class="ti ti-category" style="margin-right:5px"></i>Tipo</span><span class="sv">${esc(p.kind||'materiales')}</span></div></div>
       <div class="sec"><h3>Resumen de actividad</h3>
         <div class="stat-row"><span class="sl">Total en órdenes</span><span class="sv or">${fmt(totOC)}</span></div>
-        <div class="stat-row"><span class="sl">Total liquidado (mano de obra)</span><span class="sv gr">${fmt((D.liquidaciones||[]).filter(l=>l.providerId==p.id||(!l.providerId&&l.worker===p.name)).reduce((a,l)=>a+l.amount,0))}</span></div>
+        <div class="stat-row"><span class="sl">Total liquidado (mano de obra)</span><span class="sv gr">${fmtU((D.liquidaciones||[]).filter(l=>l.providerId==p.id||(!l.providerId&&l.worker===p.name)).reduce((a,l)=>a+(l.usd||0),0))}</span></div>
         <div class="stat-row"><span class="sl">Órdenes registradas</span><span class="sv">${p.orders.length}</span></div>
         <div class="stat-row"><span class="sl">Comprobantes cargados</span><span class="sv">${recs.length}</span></div>
         <div class="stat-row"><span class="sl">Presup. aprobados</span><span class="sv gr">${buds.filter(b=>b.status==='aprobado').length} de ${buds.length}</span></div></div>
@@ -69,7 +69,7 @@ export function rProvD(){
     body = `<div class="sec"><h3><span>Presupuestos</span><button class="btn-or sm" id="new-budget"><i class="ti ti-upload"></i> Cargar presupuesto</button></h3>
       ${buds.length===0?`<div style="text-align:center;padding:2.5rem;color:var(--text3)"><i class="ti ti-file-invoice" style="font-size:32px;display:block;margin-bottom:10px"></i>Sin presupuestos cargados. Subí el PDF con el concepto y el monto para poder compararlo con otros proveedores.</div>`
       :`<table><thead><tr><th>Concepto</th><th>Proyecto</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Archivo</th><th></th></tr></thead><tbody>
-        ${buds.map(b=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}${b.note?`<div style="font-size:11px;color:var(--text3)">${esc(b.note)}</div>`:''}</td><td style="color:var(--text2)">${esc(b.project||'-')}</td><td style="font-weight:600;color:var(--orange)">${fmt(b.amount)}</td><td>${budgetBadge(b.status)}</td><td>${b.date||''}</td>
+        ${buds.map(b=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}${b.note?`<div style="font-size:11px;color:var(--text3)">${esc(b.note)}</div>`:''}</td><td style="color:var(--text2)">${esc(b.project||'-')}</td><td style="font-weight:600;color:var(--orange)">${amtCell(b)}</td><td>${budgetBadge(b.status)}</td><td>${b.date||''}</td>
           <td>${b.fileId?`<button class="link-btn" data-rview="${b.fileId}" data-rname="${esc(b.name||'presupuesto')}"><i class="ti ti-eye"></i></button> <button class="link-btn" data-rdl="${b.fileId}" data-rname="${esc(b.name||'presupuesto')}"><i class="ti ti-download"></i></button>`:'<span style="color:var(--text3)">—</span>'}</td>
           <td style="white-space:nowrap"><button class="link-btn" data-bdedit="${b.id}" title="Editar"><i class="ti ti-edit"></i></button> ${b.status!=='aprobado'?`<button class="link-btn" data-bdapprove="${b.id}" title="Aprobar"><i class="ti ti-check"></i></button> `:''}${b.status!=='rechazado'?`<button class="link-btn" data-bdreject="${b.id}" title="Rechazar" style="color:var(--red)"><i class="ti ti-x"></i></button> `:''}<button class="tbl-del" data-bddel="${b.id}" data-rfile="${b.fileId||''}"><i class="ti ti-trash"></i></button></td></tr>`).join('')}
         </tbody></table>`}</div>`;
