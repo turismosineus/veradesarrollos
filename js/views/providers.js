@@ -6,14 +6,6 @@ import { esc, fmt, fmtK, oTotal } from '../utils.js';
 const budgetBadge = s => s==='aprobado' ? '<span class="badge bg">aprobado</span>' : (s==='rechazado' ? '<span class="badge br">rechazado</span>' : '<span class="badge ba">pendiente</span>');
 
 export function rProveedores(){
-  const all = D.providers.flatMap(p => (p.budgets||[]).map(b => ({ ...b, provider:p.name })));
-  const concepts = [...new Set(all.map(b => b.concept || 'Sin concepto'))];
-  const comp = all.length ? `
-    <div class="card"><div class="card-head"><div class="card-title">Comparativa de presupuestos</div><span style="font-size:12px;color:var(--text3)">Agrupados por concepto · el más bajo resaltado</span></div>
-      <table><thead><tr><th>Concepto</th><th>Proveedor</th><th>Proyecto</th><th>Monto</th><th>Estado</th></tr></thead><tbody>
-      ${concepts.map(c => { const rows = all.filter(b => (b.concept||'Sin concepto')===c).sort((a,b)=>a.amount-b.amount); const min = rows[0] ? rows[0].amount : 0;
-        return rows.map((b,i)=>`<tr><td style="font-weight:500">${i===0?esc(c):''}</td><td>${esc(b.provider)}</td><td style="color:var(--text2)">${esc(b.project||'-')}</td><td style="font-weight:600;color:${b.amount===min?'var(--green)':'var(--text)'}">${fmt(b.amount)}${b.amount===min&&rows.length>1?' <span class="badge bg">más bajo</span>':''}</td><td>${budgetBadge(b.status)}</td></tr>`).join(''); }).join('')}
-      </tbody></table></div>` : '';
   const filt = S.provFilter || 'todos';
   const list = filt==='todos' ? D.providers : D.providers.filter(p => (p.kind||'materiales')===filt);
   const liqOf = p => (D.liquidaciones||[]).filter(l => l.providerId==p.id || (!l.providerId && l.worker===p.name)).reduce((a,l)=>a+l.amount,0);
@@ -27,7 +19,7 @@ export function rProveedores(){
     <tbody>${list.length ? list.map(p=>`<tr class="clickable" data-oprov="${p.id}">
       <td style="font-weight:500">${esc(p.name)}</td><td><span class="badge bgr">${esc(p.kind||'materiales')}</span></td><td><span class="badge bb">${esc(p.rubro)}</span></td><td>${esc(p.contact)}</td>
       <td style="color:var(--orange);font-weight:500">${fmt(p.orders.reduce((a,o)=>a+oTotal(o),0))}</td><td style="color:var(--green);font-weight:500">${fmt(liqOf(p))}</td><td>${(p.budgets||[]).length}</td></tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem">Sin proveedores en esta categoría.</td></tr>`}</tbody></table>
-  </div>${comp}</div>`;
+  </div></div>`;
 }
 
 export function rProvD(){

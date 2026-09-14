@@ -74,7 +74,9 @@ function bind(){
   el('mob-menu')?.addEventListener('click', () => document.querySelector('.app')?.classList.toggle('nav-open'));
   el('sb-backdrop')?.addEventListener('click', () => document.querySelector('.app')?.classList.remove('nav-open'));
   document.querySelectorAll('[data-nav]').forEach(x => x.addEventListener('click', () => { S.page = x.dataset.nav; S.tab = x.dataset.nav === 'proveedores' ? 'info' : (x.dataset.nav === 'finanzas' ? 'liquidaciones' : 'estado'); render(); }));
-  document.querySelectorAll('[data-tab]').forEach(x => x.addEventListener('click', () => { S.tab = x.dataset.tab; render(); }));
+  document.querySelectorAll('[data-tab]').forEach(x => x.addEventListener('click', () => { S.tab = x.dataset.tab; if(S.tab === 'finanzas') S.ftab = 'panel'; render(); }));
+  document.querySelectorAll('[data-ftab]').forEach(x => x.addEventListener('click', () => { S.ftab = x.dataset.ftab; render(); }));
+  document.querySelectorAll('[data-openfin]').forEach(x => x.addEventListener('click', () => { S.proj = +x.dataset.openfin; S.page = 'proj-d'; S.tab = 'finanzas'; S.ftab = 'panel'; render(); }));
   document.querySelectorAll('[data-pfilter]').forEach(x => x.addEventListener('click', () => { S.provFilter = x.dataset.pfilter; render(); }));
   el('back')?.addEventListener('click', () => { S.page = S.page === 'proj-d' ? 'proyectos' : 'proveedores'; S.tab = S.page === 'proveedores' ? 'info' : 'estado'; render(); });
   el('back-order')?.addEventListener('click', () => { S.page = 'prov-d'; S.tab = 'ordenes'; render(); });
@@ -102,7 +104,8 @@ function bind(){
   open('new-order', 'new-order', () => { S.mi = [{desc:'',qty:'',unit:'u',price:''}]; });
   open('new-inv', 'new-investor', () => { S.invName = ''; S.invProjId = null; }); open('new-investor', 'new-investor', () => { S.invName = ''; S.invProjId = null; });
   open('new-inv-proj', 'new-investor', () => { S.invName = ''; S.invProjId = S.proj; });
-  open('new-exp', 'new-exp'); open('new-liq', 'new-liquidacion'); open('new-receipt', 'new-receipt'); open('new-inv-doc', 'new-inv-doc');
+  open('new-exp', 'new-exp', () => { S.expProjId = null; }); open('new-liq', 'new-liquidacion', () => { S.expProjId = null; });
+  open('new-exp-proj', 'new-exp', () => { S.expProjId = S.proj; }); open('new-liq-proj', 'new-liquidacion', () => { S.expProjId = S.proj; }); open('new-receipt', 'new-receipt'); open('new-inv-doc', 'new-inv-doc');
   open('new-update', 'new-update'); open('new-plan', 'new-plan');
   open('new-budget', 'new-budget', () => { S.bdCtx = 'provider'; });
   open('new-budget-proj', 'new-budget', () => { S.bdCtx = 'project'; });

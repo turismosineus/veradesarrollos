@@ -253,3 +253,5 @@ select.fi{appearance:none;cursor:pointer;background-image:url("data:image/svg+xm
   .upd-photo{width:30%;height:70px;}
   .bar-chart{height:100px;}
 }
+.subtabs{margin:-.25rem 0 1rem;border-bottom:1px dashed var(--border);}
+.subtabs .tab{font-size:12px;padding:7px 12px;}
