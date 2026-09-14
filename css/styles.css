@@ -255,3 +255,12 @@ select.fi{appearance:none;cursor:pointer;background-image:url("data:image/svg+xm
 }
 .subtabs{margin:-.25rem 0 1rem;border-bottom:1px dashed var(--border);}
 .subtabs .tab{font-size:12px;padding:7px 12px;}
+/* ── Planilla de proyectos ── */
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;}
+.search-box{flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);font-size:13px;outline:none;font-family:'DM Sans',sans-serif;}
+.search-box:focus{border-color:var(--orange);}
+.sel-box{padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;}
+.vtoggle{display:flex;border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;}
+.vtoggle button{background:var(--bg3);border:none;color:var(--text2);padding:7px 10px;cursor:pointer;font-size:15px;display:flex;align-items:center;}
+.vtoggle button.active{background:var(--orange-bg);color:var(--orange);}
+th[data-psort]:hover{color:var(--text);background:var(--bg4);}

@@ -116,7 +116,7 @@ function rFinanzasProy(p, dir){
 
   const panel = `${refBar}${warn}
     ${dir?`<div class="kpi-grid">
-      <div class="kpi"><i class="ti ti-file-dollar"></i><div class="kpi-lbl">Gasto proyectado (elegidos)</div><div class="kpi-val">${fmtKU(projected)}</div></div>
+      <div class="kpi"><i class="ti ti-file-dollar"></i><div class="kpi-lbl">Gasto proyectado (elegidos)</div><div class="kpi-val">${execs.some(e=>e.x.remainingNative>0)?'≈ ':''}${fmtKU(projected)}</div></div>
       <div class="kpi"><i class="ti ti-receipt"></i><div class="kpi-lbl">Gasto registrado</div><div class="kpi-val">${fmtKU(tReg)}</div></div>
       <div class="kpi"><i class="ti ti-wallet"></i><div class="kpi-lbl">Presupuesto del proyecto</div><div class="kpi-val">${fmtKU(p.budget)}</div></div>
       <div class="kpi"><i class="ti ti-scale"></i><div class="kpi-lbl">Margen vs presupuesto</div><div class="kpi-val" style="color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'':'−'}${fmtKU(Math.abs(diff))}</div></div>
@@ -134,16 +134,16 @@ function rFinanzasProy(p, dir){
       </div></div>
     </div>`;
 
-  const chosenSec = `<div class="sec"><h3><span>Presupuesto de obra — elegidos</span><span style="font-size:12px;color:var(--text3);font-weight:400">Gasto proyectado: <strong style="color:var(--orange)">${fmtU(projected)}</strong></span></h3>
-    ${chosen.length ? `<table><thead><tr><th>Concepto</th><th>Presupuesto</th><th>Pagado</th><th>Saldo</th><th>Avance</th><th>Estimado USD</th><th>Archivo</th>${dir?'<th></th>':''}</tr></thead><tbody>
+  const chosenSec = `<div class="sec"><h3><span>Presupuesto de obra — elegidos</span><span style="font-size:12px;color:var(--text3);font-weight:400">Gasto proyectado: <strong style="color:var(--orange)">${execs.some(e=>e.x.remainingNative>0)?'≈ ':''}${fmtU(projected)}</strong></span></h3>
+    ${chosen.length ? `<table><thead><tr><th>Concepto</th><th>Presupuesto</th><th>Pagado</th><th>Saldo</th><th>Avance</th><th>Costo USD <span style="font-weight:400;text-transform:none;letter-spacing:0">(≈ estimado)</span></th><th>Archivo</th>${dir?'<th></th>':''}</tr></thead><tbody>
       ${execs.map(({b,x})=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}<div style="font-size:11px;color:var(--text3)">${esc(b.provider)}${b.note?' · '+esc(b.note):''}</div></td>
         <td style="font-weight:600">${fmtAmt(b.amount,b.currency)}</td>
         <td>${fmtAmt(x.paidNative,b.currency)}<div style="font-size:11px;color:var(--text3)">${fmtU(x.paidUsd)} · ${x.nPays} pago${x.nPays!==1?'s':''}</div></td>
         <td>${fmtAmt(x.remainingNative,b.currency)}${x.remainingUsd!=null?`<div style="font-size:11px;color:var(--text3)">≈ ${fmtU(x.remainingUsd)} (últ. dólar)</div>`:''}</td>
         <td style="min-width:90px"><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,x.pct)}%;background:${x.pct>100?'var(--red)':'var(--green)'}"></div></div><div style="font-size:11px;color:var(--text3);margin-top:3px">${x.pct}%</div></td>
-        <td style="font-weight:700;color:var(--green)">${fmtU(x.estUsd)}${x.needsRate?' <span class="badge bgr" title="Se va a valuar cuando cargues el primer gasto con cotización">saldo sin valuar aún</span>':''}</td>
+        <td style="font-weight:700;color:var(--green)" title="${x.remainingNative>0?'Estimado: lo pagado a su dólar real + el saldo al último dólar cargado':'Costo real: totalmente pagado'}">${x.remainingNative>0?'≈ ':''}${fmtU(x.estUsd)}${x.remainingNative<=0&&x.nPays?' <span class="badge bg" style="font-weight:500">real</span>':''}${x.needsRate?' <span class="badge bgr" title="Se va a valuar cuando cargues el primer gasto con cotización">saldo sin valuar aún</span>':''}</td>
         <td>${fileBtns(b, b.name||'presupuesto')}</td>${dir?`<td><button class="link-btn" data-bdunchoose="${b.id}" title="Quitar de los elegidos"><i class="ti ti-arrow-back-up"></i></button></td>`:''}</tr>`).join('')}
-      </tbody><tfoot><tr><td colspan="5" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL PROYECTADO <span style="font-weight:400;font-size:11px">(pagado al dólar de cada pago + saldo al último dólar cargado${rr?': '+rr:''})</span></td><td style="font-weight:700;color:var(--orange);font-size:15px">${fmtU(projected)}</td><td colspan="${dir?2:1}"></td></tr></tfoot></table>`
+      </tbody><tfoot><tr><td colspan="5" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL PROYECTADO <span style="font-weight:400;font-size:11px">(pagado al dólar de cada pago + saldo al último dólar cargado${rr?': '+rr:''})</span></td><td style="font-weight:700;color:var(--orange);font-size:15px">${execs.some(e=>e.x.remainingNative>0)?'≈ ':''}${fmtU(projected)}</td><td colspan="${dir?2:1}"></td></tr></tfoot></table>`
     : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Todavía no elegiste ningún presupuesto. Elegí de "Presupuestos recibidos" y se suman acá como gasto proyectado.</div>`}</div>`;
   const concepts = [...new Set(pending.map(b => b.concept || 'Sin concepto'))];
   const pendRows = concepts.map(c => {
@@ -218,37 +218,71 @@ function rInversoresProy(p, dir){
 
 export function rProyectos(){
   const dir = isDirector();
-  const ps = dir ? D.projects : D.projects.filter(p => p.name === S.user.project);
-  const tSpent = ps.reduce((a,p)=>a+p.spent,0), tSale = ps.reduce((a,p)=>a+p.salePrice,0), tBudget = ps.reduce((a,p)=>a+p.budget,0);
-  return `
-  <div class="topbar">
-    <div><h1>PROYECTOS</h1><div class="topbar-sub">${ps.length} proyecto${ps.length!==1?'s':''} activos</div></div>
-    ${dir?`<div class="topbar-actions"><button class="btn-or" id="new-proj"><i class="ti ti-plus"></i> Nuevo proyecto</button></div>`:''}
-  </div>
-  <div class="content">
-    ${dir?`<div class="kpi-grid">
-      <div class="kpi"><i class="ti ti-building"></i><div class="kpi-lbl">Proyectos activos</div><div class="kpi-val">${ps.length}</div></div>
-      <div class="kpi"><i class="ti ti-cash"></i><div class="kpi-lbl">Total gastado (USD)</div><div class="kpi-val">${fmtKU(tSpent)}</div></div>
-      <div class="kpi"><i class="ti ti-trending-up"></i><div class="kpi-lbl">Venta proyectada (USD)</div><div class="kpi-val">${fmtKU(tSale)}</div></div>
-      <div class="kpi"><i class="ti ti-coin"></i><div class="kpi-lbl">Ganancia estimada (USD)</div><div class="kpi-val gr">${fmtKU(tSale-tBudget)}</div></div>
-    </div>`:''}
-    ${ps.length===0?`<div class="sec" style="text-align:center;color:var(--text3);padding:3rem"><i class="ti ti-building-off" style="font-size:34px;display:block;margin-bottom:10px"></i>Todavía no hay proyectos. Creá el primero con «Nuevo proyecto».</div>`:''}
-    <div class="proj-grid">
-      ${ps.map(p=>`
+  const base = dir ? D.projects : D.projects.filter(p => p.name === S.user.project);
+  const view = S.projView || 'table', q = (S.projQ||'').trim().toLowerCase(), st = S.projStatus || 'todos';
+  const sort = S.projSort || { key:'createdAt', dir:'desc' };
+  const rows = base.map(p => {
+    const proyectado = D.providers.flatMap(pv => (pv.budgets||[]).filter(b => b.projectId === p.id && b.status === 'aprobado')).reduce((a,b)=>a+budgetExec(b).estUsd,0);
+    const baseCost = proyectado > 0 ? proyectado : (p.budget||0);
+    const gain = (p.salePrice||0) - baseCost, margin = p.salePrice ? Math.round(gain / p.salePrice * 100) : 0;
+    return { p, proyectado, gain, margin };
+  });
+  const list = rows.filter(r => (!q || (r.p.name||'').toLowerCase().includes(q) || (r.p.address||'').toLowerCase().includes(q)) && (st === 'todos' || r.p.status === st));
+  const val = r => ({ name:(r.p.name||'').toLowerCase(), status:r.p.status||'', progress:r.p.progress||0, budget:r.p.budget||0, spent:r.p.spent||0, sale:r.p.salePrice||0, gain:r.gain, start:r.p.startDate||'', createdAt:r.p.createdAt||'' })[sort.key];
+  list.sort((a,b) => { const va = val(a), vb = val(b); const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb)); return sort.dir === 'asc' ? c : -c; });
+  const tSpent = list.reduce((a,r)=>a+(r.p.spent||0),0), tSale = list.reduce((a,r)=>a+(r.p.salePrice||0),0), tBudget = list.reduce((a,r)=>a+(r.p.budget||0),0), tGain = list.reduce((a,r)=>a+r.gain,0);
+  const th = (key, label, right) => `<th data-psort="${key}" style="cursor:pointer;white-space:nowrap;user-select:none;${right?'text-align:right':''}" title="Ordenar por ${label}">${label} <span style="opacity:${sort.key===key?1:.3};font-size:10px">${sort.key===key?(sort.dir==='asc'?'▲':'▼'):'⇅'}</span></th>`;
+  const statuses = [['todos','Todos'],['planificacion','Planificación'],['construccion','En construcción'],['pausado','Pausado'],['finalizado','Finalizado']];
+
+  const toolbar = `<div class="toolbar">
+    <input class="search-box" id="proj-q" value="${esc(S.projQ||'')}" placeholder="Buscar por nombre o dirección…">
+    <select class="sel-box" id="proj-status">${statuses.map(([k,l])=>`<option value="${k}" ${st===k?'selected':''}>${l}</option>`).join('')}</select>
+    <div class="vtoggle"><button class="${view==='table'?'active':''}" data-pview="table" title="Planilla"><i class="ti ti-table"></i></button><button class="${view==='cards'?'active':''}" data-pview="cards" title="Tarjetas"><i class="ti ti-layout-grid"></i></button></div>
+    <span style="font-size:12px;color:var(--text3)">${list.length} de ${base.length}</span>
+  </div>`;
+
+  const table = `<div class="card"><table>
+    <thead><tr>${th('name','Proyecto')}${th('status','Estado')}${th('progress','Avance')}${th('budget','Presupuesto',1)}${th('spent','Gastado',1)}${th('sale','Venta est.',1)}${th('gain','Ganancia est.',1)}${th('start','Inicio')}${th('createdAt','Creado')}</tr></thead>
+    <tbody>${list.length ? list.map(({p, gain, margin})=>`<tr class="clickable" data-op="${p.id}">
+      <td style="font-weight:500">${esc(p.name)}<div style="font-size:11px;color:var(--text3);font-weight:400">${esc(p.address||'')}</div></td>
+      <td>${sBadge(p.status)}</td>
+      <td style="min-width:120px"><div style="display:flex;align-items:center;gap:8px"><div class="prog-bar" style="flex:1"><div class="prog-fill" style="width:${p.progress||0}%"></div></div><span style="font-size:12px;color:var(--orange);font-weight:600;min-width:34px;text-align:right">${p.progress||0}%</span></div></td>
+      <td style="text-align:right">${fmtU(p.budget)}</td>
+      <td style="text-align:right;color:var(--orange)">${fmtU(p.spent)}</td>
+      <td style="text-align:right">${fmtU(p.salePrice)}</td>
+      <td style="text-align:right;font-weight:600;color:${gain>=0?'var(--green)':'var(--red)'}">${fmtU(gain)} <span style="font-size:11px;color:var(--text3);font-weight:400">(${margin}%)</span></td>
+      <td style="white-space:nowrap">${p.startDate||'—'}</td>
+      <td style="white-space:nowrap;color:var(--text3)">${p.createdAt||'—'}</td>
+    </tr>`).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:2rem">${base.length ? 'Ningún proyecto coincide con la búsqueda.' : 'Todavía no hay proyectos. Creá el primero con «Nuevo proyecto».'}</td></tr>`}</tbody>
+    ${list.length > 1 ? `<tfoot><tr><td style="padding:10px 1.25rem;font-weight:600;color:var(--text2)">TOTAL (${list.length})</td><td></td><td></td><td style="text-align:right;font-weight:600">${fmtU(tBudget)}</td><td style="text-align:right;font-weight:600;color:var(--orange)">${fmtU(tSpent)}</td><td style="text-align:right;font-weight:600">${fmtU(tSale)}</td><td style="text-align:right;font-weight:700;color:${tGain>=0?'var(--green)':'var(--red)'}">${fmtU(tGain)}</td><td></td><td></td></tr></tfoot>` : ''}
+  </table></div>`;
+
+  const cards = `<div class="proj-grid">${list.map(({p})=>`
       <div class="proj-card" data-op="${p.id}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-          <div style="font-size:15px;font-weight:600">${esc(p.name)}</div>${sBadge(p.status)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div style="font-size:15px;font-weight:600">${esc(p.name)}</div>${sBadge(p.status)}</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:4px"><i class="ti ti-map-pin" style="font-size:12px"></i>${esc(p.address)}</div>
-        <div style="margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px"><span>Avance de obra</span><span style="color:var(--orange);font-weight:600">${p.progress}%</span></div>
-          <div class="prog-bar" style="height:8px"><div class="prog-fill" style="width:${p.progress}%"></div></div></div>
+        <div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px"><span>Avance de obra</span><span style="color:var(--orange);font-weight:600">${p.progress}%</span></div><div class="prog-bar" style="height:8px"><div class="prog-fill" style="width:${p.progress}%"></div></div></div>
         <div style="display:flex;gap:0;border-top:1px solid var(--border);padding-top:12px">
           <div style="flex:1;padding-right:12px;border-right:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">PRESUPUESTO</div><div style="font-size:13px;font-weight:500">${fmtKU(p.budget)}</div></div>
           <div style="flex:1;padding:0 12px;border-right:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">GASTADO</div><div style="font-size:13px;font-weight:500">${fmtKU(p.spent)}</div></div>
           <div style="flex:1;padding-left:12px"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">VENTA EST.</div><div style="font-size:13px;font-weight:600;color:var(--orange)">${fmtKU(p.salePrice)}</div></div>
         </div>
-      </div>`).join('')}
-    </div>
+      </div>`).join('')}${list.length ? '' : `<div class="sec" style="grid-column:1/-1;text-align:center;color:var(--text3);padding:3rem">${base.length ? 'Ningún proyecto coincide con la búsqueda.' : 'Todavía no hay proyectos.'}</div>`}</div>`;
+
+  return `
+  <div class="topbar">
+    <div><h1>PROYECTOS</h1><div class="topbar-sub">${base.length} proyecto${base.length!==1?'s':''}</div></div>
+    ${dir?`<div class="topbar-actions"><button class="btn-or" id="new-proj"><i class="ti ti-plus"></i> Nuevo proyecto</button></div>`:''}
+  </div>
+  <div class="content">
+    ${dir?`<div class="kpi-grid">
+      <div class="kpi"><i class="ti ti-building"></i><div class="kpi-lbl">Proyectos ${list.length!==base.length?'(filtrados)':''}</div><div class="kpi-val">${list.length}</div></div>
+      <div class="kpi"><i class="ti ti-cash"></i><div class="kpi-lbl">Total gastado (USD)</div><div class="kpi-val">${fmtKU(tSpent)}</div></div>
+      <div class="kpi"><i class="ti ti-trending-up"></i><div class="kpi-lbl">Venta proyectada (USD)</div><div class="kpi-val">${fmtKU(tSale)}</div></div>
+      <div class="kpi"><i class="ti ti-coin"></i><div class="kpi-lbl">Ganancia estimada (USD)</div><div class="kpi-val" style="color:${tGain>=0?'var(--green)':'var(--red)'}">${fmtKU(tGain)}</div></div>
+    </div>`:''}
+    ${toolbar}
+    ${view === 'cards' ? cards : table}
   </div>`;
 }
 

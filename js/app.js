@@ -84,6 +84,11 @@ function bind(){
   el('back')?.addEventListener('click', () => { S.page = S.page === 'proj-d' ? 'proyectos' : 'proveedores'; S.tab = S.page === 'proveedores' ? 'info' : 'estado'; render(); });
   el('back-order')?.addEventListener('click', () => { S.page = 'prov-d'; S.tab = 'ordenes'; render(); });
   el('back-inv')?.addEventListener('click', () => { S.page = 'inversores'; render(); });
+  el('proj-q')?.addEventListener('input', e => { S.projQ = e.target.value; S.projQFocus = true; render(); });
+  el('proj-status')?.addEventListener('change', e => { S.projStatus = e.target.value; render(); });
+  document.querySelectorAll('[data-psort]').forEach(x => x.addEventListener('click', () => { const k = x.dataset.psort; const cur = S.projSort || { key:'createdAt', dir:'desc' }; S.projSort = { key:k, dir: cur.key === k && cur.dir === 'desc' ? 'asc' : (cur.key === k ? 'desc' : (k === 'name' || k === 'status' ? 'asc' : 'desc')) }; render(); }));
+  document.querySelectorAll('[data-pview]').forEach(x => x.addEventListener('click', () => { S.projView = x.dataset.pview; render(); }));
+  if(S.projQFocus){ const qq = el('proj-q'); if(qq){ qq.focus(); qq.setSelectionRange(qq.value.length, qq.value.length); } S.projQFocus = false; }
   document.querySelectorAll('[data-op]').forEach(x => x.addEventListener('click', () => { S.proj = +x.dataset.op; S.page = 'proj-d'; S.tab = 'estado'; render(); }));
   document.querySelectorAll('[data-oprov]').forEach(x => x.addEventListener('click', () => { S.prov = +x.dataset.oprov; S.page = 'prov-d'; S.tab = 'info'; render(); }));
   document.querySelectorAll('[data-oo]').forEach(x => x.addEventListener('click', () => { S.order = x.dataset.oo; S.page = 'order-d'; render(); }));

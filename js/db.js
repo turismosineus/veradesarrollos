@@ -10,7 +10,7 @@ const d = x => x || null;
 const num = x => Number(x) || 0;
 const clamp = x => Math.min(100, Math.max(0, num(x)));
 
-const mapProject = r => ({ id:r.id, name:r.name, address:r.address, status:r.status, progress:r.progress, startDate:r.start_date, endDate:r.end_date, salePrice:num(r.sale_price), budget:num(r.budget), spent:0, description:r.description, updates:r.updates||[], plans:[], media:[], cameras:[], model3d:r.model3d, streamUrl:r.stream_url });
+const mapProject = r => ({ id:r.id, createdAt:(r.created_at||'').slice(0,10), name:r.name, address:r.address, status:r.status, progress:r.progress, startDate:r.start_date, endDate:r.end_date, salePrice:num(r.sale_price), budget:num(r.budget), spent:0, description:r.description, updates:r.updates||[], plans:[], media:[], cameras:[], model3d:r.model3d, streamUrl:r.stream_url });
 const projectRow = o => ({ name:o.name, address:o.address, status:o.status, progress:o.progress, start_date:d(o.startDate), end_date:d(o.endDate), sale_price:num(o.salePrice), budget:num(o.budget), description:o.description, updates:o.updates||[], model3d:o.model3d||null, stream_url:o.streamUrl||null });
 const mapOrder   = r => ({ id:r.id, providerId:r.provider_id, projectId:r.project_id, project:r.project, status:r.status, items:r.items||[], date:r.date });
 const mapReceipt = r => ({ id:r.id, name:r.name, fileId:r.file_path, mime:r.mime, amount:num(r.amount), date:r.date, projectId:r.project_id, project:r.project, orderId:r.order_id, note:r.note });
