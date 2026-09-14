@@ -1,6 +1,6 @@
 // Vistas de Proyectos: listado (rProyectos) y detalle con pestañas (rProjD).
 import { S, D } from '../state.js';
-import { isDirector, fmt, fmtK, fmtU, fmtKU, amtCell, esc, sBadge, toEmbed, camType } from '../utils.js';
+import { isDirector, fmt, fmtK, fmtU, fmtKU, fmtAmt, amtCell, refRate, budgetExec, esc, sBadge, toEmbed, camType } from '../utils.js';
 import { PLAN_CATS } from '../constants.js';
 
 // Badge de estado de un plano
@@ -100,18 +100,21 @@ function rFinanzasProy(p, dir){
   const buds = D.providers.flatMap(pv => (pv.budgets||[]).filter(b => b.projectId === p.id).map(b => ({ ...b, provider:pv.name })));
   const chosen = buds.filter(b => b.status === 'aprobado');
   const pending = buds.filter(b => b.status !== 'aprobado');
-  const projected = chosen.reduce((a,b)=>a+(b.usd||0),0);
+  const rr = refRate();
+  const execs = chosen.map(b => ({ b, x: budgetExec(b) }));
+  const projected = execs.reduce((a,e)=>a+e.x.estUsd,0);
   const diff = p.budget - projected;
+  const refBar = dir ? `<div class="sec" style="padding:.7rem 1.25rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px"><i class="ti ti-currency-dollar" style="color:var(--orange);font-size:18px"></i><span style="color:var(--text2)">Dólar de referencia para valuar saldos pendientes:</span><strong style="font-size:15px">${rr ? rr : '—'}</strong>${(!D.settings||!D.settings.refRate)&&rr?'<span class="badge bgr" title="Todavía no fijaste uno: se usa la última cotización cargada">última cargada</span>':''}${!rr?'<span class="badge ba">sin definir</span>':''}<button class="btn-sec" id="set-ref-rate" style="padding:4px 10px;font-size:12px;margin-left:auto"><i class="ti ti-edit"></i> Cambiar</button></div>` : '';
   const gastos = D.expenses.filter(e => e.projectId === p.id);
   const liqs = (D.liquidaciones||[]).filter(l => l.projectId === p.id);
   const tG = gastos.reduce((a,e)=>a+(e.usd||0),0), tL = liqs.reduce((a,l)=>a+(l.usd||0),0), tReg = tG + tL;
-  const unknown = [...gastos, ...liqs, ...chosen].filter(x => x.usd == null).length;
+  const unknown = [...gastos, ...liqs].filter(x => x.usd == null).length;
   const bb = s => s==='rechazado' ? '<span class="badge br">rechazado</span>' : '<span class="badge ba">pendiente</span>';
   const fileBtns = (b, nm) => b.fileId ? `<button class="link-btn" data-rview="${b.fileId}" data-rname="${esc(nm||'archivo')}"><i class="ti ti-eye"></i></button> <button class="link-btn" data-rdl="${b.fileId}" data-rname="${esc(nm||'archivo')}"><i class="ti ti-download"></i></button>` : '<span style="color:var(--text3)">—</span>';
   const norm = x => (x||'').trim().toLowerCase();
   const warn = unknown ? `<div style="font-size:12px;color:var(--amber);background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 12px;margin-bottom:1rem"><i class="ti ti-alert-triangle"></i> Hay <b>${unknown}</b> movimiento${unknown>1?'s':''} en pesos <b>sin cotización</b>: no entran en los totales en USD hasta que los edites y cargues el dólar de ese día.</div>` : '';
 
-  const panel = `${warn}
+  const panel = `${refBar}${warn}
     ${dir?`<div class="kpi-grid">
       <div class="kpi"><i class="ti ti-file-dollar"></i><div class="kpi-lbl">Gasto proyectado (elegidos)</div><div class="kpi-val">${fmtKU(projected)}</div></div>
       <div class="kpi"><i class="ti ti-receipt"></i><div class="kpi-lbl">Gasto registrado</div><div class="kpi-val">${fmtKU(tReg)}</div></div>
@@ -132,20 +135,27 @@ function rFinanzasProy(p, dir){
     </div>`;
 
   const chosenSec = `<div class="sec"><h3><span>Presupuesto de obra — elegidos</span><span style="font-size:12px;color:var(--text3);font-weight:400">Gasto proyectado: <strong style="color:var(--orange)">${fmtU(projected)}</strong></span></h3>
-    ${chosen.length ? `<table><thead><tr><th>Concepto</th><th>Proveedor</th><th>Monto</th><th>Fecha</th><th>Archivo</th>${dir?'<th></th>':''}</tr></thead><tbody>
-      ${chosen.map(b=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}${b.note?`<div style="font-size:11px;color:var(--text3)">${esc(b.note)}</div>`:''}</td><td>${esc(b.provider)}</td><td style="font-weight:600;color:var(--green)">${amtCell(b)}</td><td>${b.date||''}</td><td>${fileBtns(b, b.name||'presupuesto')}</td>${dir?`<td><button class="link-btn" data-bdunchoose="${b.id}" title="Quitar de los elegidos"><i class="ti ti-arrow-back-up"></i> Quitar</button></td>`:''}</tr>`).join('')}
-      </tbody><tfoot><tr><td colspan="2" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL PROYECTADO</td><td style="font-weight:700;color:var(--orange);font-size:15px">${fmtU(projected)}</td><td colspan="${dir?3:2}"></td></tr></tfoot></table>`
+    ${chosen.length ? `<table><thead><tr><th>Concepto</th><th>Presupuesto</th><th>Pagado</th><th>Saldo</th><th>Avance</th><th>Estimado USD</th><th>Archivo</th>${dir?'<th></th>':''}</tr></thead><tbody>
+      ${execs.map(({b,x})=>`<tr><td style="font-weight:500">${esc(b.concept||b.name||'-')}<div style="font-size:11px;color:var(--text3)">${esc(b.provider)}${b.note?' · '+esc(b.note):''}</div></td>
+        <td style="font-weight:600">${fmtAmt(b.amount,b.currency)}</td>
+        <td>${fmtAmt(x.paidNative,b.currency)}<div style="font-size:11px;color:var(--text3)">${fmtU(x.paidUsd)} · ${x.nPays} pago${x.nPays!==1?'s':''}</div></td>
+        <td>${fmtAmt(x.remainingNative,b.currency)}${x.remainingUsd!=null?`<div style="font-size:11px;color:var(--text3)">≈ ${fmtU(x.remainingUsd)} (ref.)</div>`:''}</td>
+        <td style="min-width:90px"><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,x.pct)}%;background:${x.pct>100?'var(--red)':'var(--green)'}"></div></div><div style="font-size:11px;color:var(--text3);margin-top:3px">${x.pct}%</div></td>
+        <td style="font-weight:700;color:var(--green)">${fmtU(x.estUsd)}${x.needsRate?' <span class="badge ba" title="Falta el dólar de referencia para valuar el saldo">falta dólar ref.</span>':''}</td>
+        <td>${fileBtns(b, b.name||'presupuesto')}</td>${dir?`<td><button class="link-btn" data-bdunchoose="${b.id}" title="Quitar de los elegidos"><i class="ti ti-arrow-back-up"></i></button></td>`:''}</tr>`).join('')}
+      </tbody><tfoot><tr><td colspan="5" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL PROYECTADO (pagado a dólar histórico + saldo a dólar de referencia)</td><td style="font-weight:700;color:var(--orange);font-size:15px">${fmtU(projected)}</td><td colspan="${dir?2:1}"></td></tr></tfoot></table>`
     : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Todavía no elegiste ningún presupuesto. Elegí de "Presupuestos recibidos" y se suman acá como gasto proyectado.</div>`}</div>`;
   const concepts = [...new Set(pending.map(b => b.concept || 'Sin concepto'))];
   const pendRows = concepts.map(c => {
-    const rows = pending.filter(b => (b.concept||'Sin concepto')===c).sort((a,b)=>(a.usd??Infinity)-(b.usd??Infinity));
-    const min = rows[0] ? rows[0].usd : null, already = chosen.some(x => norm(x.concept) === norm(c));
-    return rows.map((b,i)=>`<tr><td style="font-weight:500">${i===0?esc(c):''}${i===0&&already?' <span class="badge bgr" title="Ya hay un presupuesto elegido para este concepto">ya elegido</span>':''}</td><td>${esc(b.provider)}</td><td style="font-weight:600;color:${b.usd!=null&&b.usd===min&&rows.length>1?'var(--green)':'var(--text)'}">${amtCell(b)}${b.usd!=null&&b.usd===min&&rows.length>1?' <span class="badge bg">más bajo</span>':''}</td><td>${bb(b.status)}</td><td>${b.date||''}</td><td>${fileBtns(b, b.name||'presupuesto')}</td>${dir?`<td style="white-space:nowrap"><button class="btn-or sm" data-bdchoose="${b.id}"><i class="ti ti-check"></i> Elegir</button> ${b.status!=='rechazado'?`<button class="link-btn" data-bdreject="${b.id}" title="Rechazar" style="color:var(--red)"><i class="ti ti-x"></i></button>`:''}</td>`:''}</tr>`).join('');
+    const est = b => b.usd != null ? b.usd : (b.currency==='ARS' && rr ? b.amount/rr : null);
+    const rows = pending.filter(b => (b.concept||'Sin concepto')===c).sort((a,b)=>(est(a)??Infinity)-(est(b)??Infinity));
+    const min = rows[0] ? est(rows[0]) : null, already = chosen.some(x => norm(x.concept) === norm(c));
+    return rows.map((b,i)=>`<tr><td style="font-weight:500">${i===0?esc(c):''}${i===0&&already?' <span class="badge bgr" title="Ya hay un presupuesto elegido para este concepto">ya elegido</span>':''}</td><td>${esc(b.provider)}</td><td style="font-weight:600;color:${est(b)!=null&&est(b)===min&&rows.length>1?'var(--green)':'var(--text)'}">${amtCell(b, rr)}${est(b)!=null&&est(b)===min&&rows.length>1?' <span class="badge bg">más bajo</span>':''}</td><td>${bb(b.status)}</td><td>${b.date||''}</td><td>${fileBtns(b, b.name||'presupuesto')}</td>${dir?`<td style="white-space:nowrap"><button class="btn-or sm" data-bdchoose="${b.id}"><i class="ti ti-check"></i> Elegir</button> ${b.status!=='rechazado'?`<button class="link-btn" data-bdreject="${b.id}" title="Rechazar" style="color:var(--red)"><i class="ti ti-x"></i></button>`:''}</td>`:''}</tr>`).join('');
   }).join('');
   const pendingSec = `<div class="sec"><h3><span>Presupuestos recibidos</span>${dir?`<button class="btn-or sm" id="new-budget-proj"><i class="ti ti-upload"></i> Cargar presupuesto</button>`:''}</h3>
     ${pending.length ? `<table><thead><tr><th>Concepto</th><th>Proveedor</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Archivo</th>${dir?'<th></th>':''}</tr></thead><tbody>${pendRows}</tbody></table>`
     : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Sin presupuestos pendientes para este proyecto.</div>`}</div>`;
-  const presupuesto = warn + chosenSec + pendingSec;
+  const presupuesto = refBar + warn + chosenSec + pendingSec;
 
   const execPct = projected ? Math.round(tReg/projected*100) : null;
   const gastosSec = `${warn}
@@ -157,13 +167,13 @@ function rFinanzasProy(p, dir){
     </div>
     <div class="card"><div class="card-head"><div class="card-title">Gastos (compras) de la obra</div>${dir?`<button class="btn-or sm" id="new-exp-proj"><i class="ti ti-plus"></i> Registrar gasto</button>`:''}</div>
       ${gastos.length ? `<table><thead><tr><th>Concepto</th><th>Categoría</th><th>Proveedor</th><th>Monto</th><th>Fecha</th><th>Factura</th>${dir?'<th></th>':''}</tr></thead>
-      <tbody>${gastos.map(e=>`<tr><td>${esc(e.concept)}</td><td><span class="badge bgr">${esc(e.category)}</span></td><td style="color:var(--text2)">${esc(e.provider)}</td><td style="font-weight:500">${amtCell(e)}</td><td>${e.date||''}</td><td>${fileBtns(e, e.concept)}</td>${dir?`<td style="white-space:nowrap"><button class="link-btn" data-eedit="${e.id}" title="Editar"><i class="ti ti-edit"></i></button> <button class="tbl-del" data-edel="${e.id}" data-efile="${e.fileId||''}"><i class="ti ti-trash"></i></button></td>`:''}</tr>`).join('')}</tbody>
+      <tbody>${gastos.map(e=>`<tr><td>${esc(e.concept)}${e.budgetId?`<div style="font-size:11px;color:var(--purple)"><i class="ti ti-link"></i> ${esc((chosen.find(b=>b.id===e.budgetId)||{}).concept||'presupuesto')}</div>`:''}</td><td><span class="badge bgr">${esc(e.category)}</span></td><td style="color:var(--text2)">${esc(e.provider)}</td><td style="font-weight:500">${amtCell(e)}</td><td>${e.date||''}</td><td>${fileBtns(e, e.concept)}</td>${dir?`<td style="white-space:nowrap"><button class="link-btn" data-eedit="${e.id}" title="Editar"><i class="ti ti-edit"></i></button> <button class="tbl-del" data-edel="${e.id}" data-efile="${e.fileId||''}"><i class="ti ti-trash"></i></button></td>`:''}</tr>`).join('')}</tbody>
       <tfoot><tr><td colspan="3" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL GASTOS</td><td style="font-weight:700;color:var(--orange)">${fmtU(tG)}</td><td colspan="${dir?3:2}"></td></tr></tfoot></table>`
       : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Sin gastos registrados en esta obra.</div>`}
     </div>
     <div class="card"><div class="card-head"><div class="card-title">Liquidaciones (mano de obra) de la obra</div>${dir?`<button class="btn-or sm" id="new-liq-proj"><i class="ti ti-plus"></i> Registrar liquidación</button>`:''}</div>
       ${liqs.length ? `<table><thead><tr><th>Proveedor / Profesional</th><th>Rubro</th><th>Monto</th><th>Fecha</th><th>Nota</th>${dir?'<th></th>':''}</tr></thead>
-      <tbody>${liqs.map(l=>`<tr><td style="font-weight:500">${esc(l.worker)}</td><td><span class="badge bb">${esc(l.trade||'-')}</span></td><td style="font-weight:500">${amtCell(l)}</td><td>${l.date||''}</td><td style="color:var(--text2)">${esc(l.note||'-')}</td>${dir?`<td style="white-space:nowrap"><button class="link-btn" data-ledit="${l.id}" title="Editar"><i class="ti ti-edit"></i></button> <button class="tbl-del" data-ldel="${l.id}"><i class="ti ti-trash"></i></button></td>`:''}</tr>`).join('')}</tbody>
+      <tbody>${liqs.map(l=>`<tr><td style="font-weight:500">${esc(l.worker)}${l.budgetId?`<div style="font-size:11px;color:var(--purple)"><i class="ti ti-link"></i> ${esc((chosen.find(b=>b.id===l.budgetId)||{}).concept||'presupuesto')}</div>`:''}</td><td><span class="badge bb">${esc(l.trade||'-')}</span></td><td style="font-weight:500">${amtCell(l)}</td><td>${l.date||''}</td><td style="color:var(--text2)">${esc(l.note||'-')}</td>${dir?`<td style="white-space:nowrap"><button class="link-btn" data-ledit="${l.id}" title="Editar"><i class="ti ti-edit"></i></button> <button class="tbl-del" data-ldel="${l.id}"><i class="ti ti-trash"></i></button></td>`:''}</tr>`).join('')}</tbody>
       <tfoot><tr><td colspan="2" style="text-align:right;color:var(--text2);font-weight:600;padding:10px 1.25rem">TOTAL LIQUIDACIONES</td><td style="font-weight:700;color:var(--orange)">${fmtU(tL)}</td><td colspan="${dir?3:2}"></td></tr></tfoot></table>`
       : `<div style="text-align:center;padding:1.5rem;color:var(--text3)">Sin liquidaciones registradas en esta obra.</div>`}
     </div>`;

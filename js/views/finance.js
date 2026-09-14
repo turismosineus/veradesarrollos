@@ -1,10 +1,10 @@
 // Módulo Finanzas: tablero comparativo de todas las obras.
 import { D } from '../state.js';
-import { fmtU, fmtKU, esc, sBadge } from '../utils.js';
+import { fmtU, fmtKU, esc, sBadge, refRate, budgetExec } from '../utils.js';
 
 export function rFinanzas(){
   const rows = D.projects.map(p => {
-    const proyectado = D.providers.flatMap(pv => (pv.budgets||[]).filter(b => b.projectId === p.id && b.status === 'aprobado')).reduce((a,b)=>a+(b.usd||0),0);
+    const proyectado = D.providers.flatMap(pv => (pv.budgets||[]).filter(b => b.projectId === p.id && b.status === 'aprobado')).reduce((a,b)=>a+budgetExec(b).estUsd,0);
     const registrado = p.spent || 0;
     const base = proyectado > 0 ? proyectado : (p.budget || 0);      // contra qué se mide la ganancia
     const ganancia = (p.salePrice||0) - base;
@@ -16,7 +16,8 @@ export function rFinanzas(){
   const T = k => rows.reduce((a,r)=>a+(r[k]||0),0);
   const tVenta = rows.reduce((a,r)=>a+(r.p.salePrice||0),0), tPres = rows.reduce((a,r)=>a+(r.p.budget||0),0);
   return `
-  <div class="topbar"><div><h1>FINANZAS</h1><div class="topbar-sub">Resumen por obra en USD · ${rows.length} proyecto${rows.length!==1?'s':''}</div></div></div>
+  <div class="topbar"><div><h1>FINANZAS</h1><div class="topbar-sub">Resumen por obra en USD · ${rows.length} proyecto${rows.length!==1?'s':''}</div></div>
+    <div class="topbar-actions"><span style="font-size:12px;color:var(--text2)">Dólar de referencia: <strong>${refRate()||'—'}</strong></span><button class="btn-sec" id="set-ref-rate" style="padding:5px 10px;font-size:12px"><i class="ti ti-edit"></i> Cambiar</button></div></div>
   <div class="content">
     <div class="kpi-grid">
       <div class="kpi"><i class="ti ti-file-dollar"></i><div class="kpi-lbl">Gasto proyectado</div><div class="kpi-val">${fmtKU(T('proyectado'))}</div></div>

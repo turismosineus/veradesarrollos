@@ -4,9 +4,11 @@ import { UNITS, EXP_CATS, OFICIOS, PLAN_CATS, PROV_KINDS } from '../constants.js
 const laborFirst = p => (p.kind==='mano de obra'||p.kind==='profesional') ? 0 : 1;
 import { esc, today, nextOrderNo, projOptions, fmt, lastRate } from '../utils.js';
 // Campos "Moneda + Cotización" reutilizables. La cotización solo se pide si es en pesos.
-const curFields = (px, ed, defCur) => { const cur = ed ? (ed.currency||defCur) : defCur, rate = ed ? (ed.rate||'') : (lastRate()||'');
+const chosenOpts = (projId, sel) => D.providers.flatMap(pv => (pv.budgets||[]).filter(b => b.status==='aprobado' && (!projId || b.projectId==projId)).map(b => `<option value="${b.id}" ${sel==b.id?'selected':''}>${esc(b.concept||b.name||'')} — ${esc(pv.name)}${projId?'':' ('+esc(b.project||'')+')'}</option>`)).join('');
+const budgetPick = (px, ed) => `<div class="fl"><label>Imputar a un presupuesto elegido (opcional)</label><select class="fi" id="${px}-budget"><option value="">— No corresponde a un presupuesto —</option>${chosenOpts(ed?ed.projectId:(S.expProjId||null), ed?ed.budgetId:null)}</select><div style="font-size:11px;color:#6b7280;margin-top:4px">Así el presupuesto descuenta lo pagado y calcula el saldo pendiente.</div></div>`;
+const curFields = (px, ed, defCur, reqRate = true) => { const cur = ed ? (ed.currency||defCur) : defCur, rate = ed ? (ed.rate||'') : (reqRate ? (lastRate()||'') : '');
   return `<div class="frow"><div class="fl"><label>Moneda</label><select class="fi" id="${px}-cur" onchange="document.getElementById('${px}-rate-wrap').style.display=this.value==='USD'?'none':''"><option value="ARS" ${cur==='ARS'?'selected':''}>Pesos (ARS)</option><option value="USD" ${cur==='USD'?'selected':''}>Dólares (USD)</option></select></div>
-    <div class="fl" id="${px}-rate-wrap" style="${cur==='USD'?'display:none':''}"><label>Cotización del dólar ese día <span class="req">*</span></label><input class="fi" id="${px}-rate" type="number" step="0.01" min="0" value="${rate}" placeholder="Ej. 1350"><div style="font-size:11px;color:#6b7280;margin-top:4px">Pesos por 1 USD. Sirve para calcular el equivalente en dólares.</div></div></div>`; };
+    <div class="fl" id="${px}-rate-wrap" style="${cur==='USD'?'display:none':''}"><label>${reqRate ? 'Cotización del dólar ese día <span class="req">*</span>' : 'Cotización al momento de cotizar (opcional)'}</label><input class="fi" id="${px}-rate" type="number" step="0.01" min="0" value="${rate}" placeholder="Ej. 1350"><div style="font-size:11px;color:#6b7280;margin-top:4px">Pesos por 1 USD. Sirve para calcular el equivalente en dólares.</div></div></div>`; };
 
 const drop = (prefix, label, hint, multi, accept) => `
   <input type="file" id="${prefix}-file" ${multi?'multiple':''} accept="${accept||'.pdf,.jpg,.jpeg,.png,.webp,image/*,application/pdf'}" style="display:none">
@@ -84,6 +86,7 @@ export function rModal(){
       <div class="frow"><div class="fl"><label>Proyecto</label><select class="fi" id="ne-project">${projOptions(ed?ed.projectId:(S.expProjId||undefined))}</select></div>
         <div class="fl"><label>Proveedor</label><select class="fi" id="ne-provider"><option value="">— Sin proveedor —</option>${D.providers.map(p=>`<option value="${p.id}" ${ed&&ed.providerId==p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div></div>
       ${curFields('ne', ed, 'ARS')}
+      ${budgetPick('ne', ed)}
       <div class="fl"><label>Fecha del gasto</label><input class="fi" id="ne-date" type="date" value="${ed?(ed.date||''):today()}"></div>
       <div class="fl"><label>Factura ${ed&&ed.fileId?'(ya hay una cargada — elegí otra solo si querés reemplazarla)':'(opcional)'}</label>${drop('ex', 'Adjuntar factura (PDF o imagen)', '', false)}</div>`,
       'save-exp', ed?'Guardar cambios':'Registrar gasto');
@@ -95,6 +98,7 @@ export function rModal(){
       <div class="fl"><label>Proveedor / Profesional que cobra <span class="req">*</span></label><select class="fi" id="nl-prov"><option value="">— Elegí quién cobra —</option>${[...D.providers].sort((a,b)=>laborFirst(a)-laborFirst(b)).map(p=>`<option value="${p.id}" ${ed&&(ed.providerId==p.id||(!ed.providerId&&ed.worker===p.name))?'selected':''}>${esc(p.name)} — ${esc(p.rubro||'')} (${esc(p.kind||'materiales')})</option>`).join('')}</select><div style="font-size:11px;color:#6b7280;margin-top:4px">Si no aparece, cargalo primero en <b>Proveedores</b> como "mano de obra" o "profesional".</div></div>
       <div class="fl"><label>Monto <span class="req">*</span></label><input class="fi" id="nl-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
       ${curFields('nl', ed, 'ARS')}
+      ${budgetPick('nl', ed)}
       <div class="frow"><div class="fl"><label>Proyecto</label><select class="fi" id="nl-project">${projOptions(ed?ed.projectId:(S.expProjId||undefined))}</select></div>
         <div class="fl"><label>Fecha</label><input class="fi" id="nl-date" type="date" value="${ed?(ed.date||''):today()}"></div></div>
       <div class="fl"><label>Nota</label><input class="fi" id="nl-note" value="${ed?esc(ed.note||''):''}" placeholder="Ej. quincena, etapa de obra, etc."></div>`,
@@ -124,7 +128,7 @@ export function rModal(){
       <div class="fl"><label>Archivo ${ed&&ed.fileId?'(ya hay uno cargado — elegí otro solo si querés reemplazarlo)':'(opcional)'}</label>${drop('bd', 'Arrastrá el PDF o hacé click', '', false)}</div>
       <div class="frow"><div class="fl"><label>Monto <span class="req">*</span></label><input class="fi" id="bd-amount" type="number" value="${ed?ed.amount:''}" placeholder="0"></div>
         ${fromProj ? '' : `<div class="fl"><label>Proyecto</label><select class="fi" id="bd-project"><option value="">— Sin proyecto —</option>${projOptions(ed?ed.projectId:undefined)}</select></div>`}</div>
-      ${curFields('bd', ed, 'ARS')}
+      ${curFields('bd', ed, 'ARS', false)}
       <div class="frow"><div class="fl"><label>Fecha</label><input class="fi" id="bd-date" type="date" value="${ed?(ed.date||''):today()}"></div>
         <div class="fl"><label>Nota</label><input class="fi" id="bd-note" value="${ed?esc(ed.note||''):''}" placeholder="Validez, condiciones, etc."></div></div>`,
       'save-budget', ed?'Guardar cambios':'Guardar presupuesto');

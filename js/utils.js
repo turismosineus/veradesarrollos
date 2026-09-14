@@ -76,7 +76,26 @@ export const fmtAmt = (n, cur) => cur === 'USD' ? fmtU(n) : fmt(n) + ' ARS';
 // Equivalente en USD de un movimiento (null si está en ARS sin cotización).
 export const usdOf = x => x.currency === 'USD' ? (x.amount||0) : (x.rate ? (x.amount||0) / x.rate : null);
 // Celda "monto original + equivalente USD" para tablas.
-export const amtCell = x => fmtAmt(x.amount, x.currency) + (x.currency === 'USD' ? '' : (x.usd != null ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU(x.usd) + ' @ ' + x.rate + '</div>' : '<div style="font-size:11px;color:var(--amber)">sin cotización</div>'));
+export const amtCell = (x, fb) => fmtAmt(x.amount, x.currency) + (x.currency === 'USD' ? '' : (x.usd != null ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU(x.usd) + ' @ ' + x.rate + '</div>' : (fb ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU((x.amount||0)/fb) + ' <span title="a dólar de referencia">(ref. ' + fb + ')</span></div>' : '<div style="font-size:11px;color:var(--amber)">sin cotización</div>')));
+// Dólar de referencia para saldos pendientes: el configurado, o la última cotización cargada.
+export const refRate = () => (D.settings && D.settings.refRate) || lastRate() || 0;
+// Ejecución de un presupuesto: pagado (a dólar histórico) + saldo (a dólar de referencia).
+export function budgetExec(b){
+  const rr = refRate();
+  const pays = [...D.expenses, ...(D.liquidaciones||[])].filter(m => m.budgetId === b.id);
+  const paidUsd = pays.reduce((a,m)=>a+(m.usd||0),0);
+  let paidNative, remainingNative, remainingUsd, estUsd;
+  if(b.currency === 'ARS'){
+    paidNative = pays.reduce((a,m)=> a + (m.currency === 'ARS' ? (m.amount||0) : (m.amount||0) * (m.rate || rr || 0)), 0);
+    remainingNative = Math.max(0, (b.amount||0) - paidNative);
+    remainingUsd = rr ? remainingNative / rr : null;
+    estUsd = paidUsd + (remainingUsd || 0);
+  } else {
+    paidNative = paidUsd; remainingNative = Math.max(0, (b.amount||0) - paidUsd); remainingUsd = remainingNative; estUsd = paidUsd + remainingNative;
+  }
+  const pct = b.amount ? Math.min(999, Math.round(paidNative / b.amount * 100)) : 0;
+  return { paidUsd, paidNative, remainingNative, remainingUsd, estUsd, pct, nPays:pays.length, needsRate: b.currency === 'ARS' && !rr && remainingNative > 0 };
+}
 // Última cotización usada (para precargar el formulario).
 export function lastRate(){
   const all = [...D.expenses, ...(D.liquidaciones||[]), ...D.investments, ...D.providers.flatMap(p => p.budgets||[])].filter(x => x.rate);
