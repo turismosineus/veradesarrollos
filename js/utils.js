@@ -76,7 +76,7 @@ export const fmtAmt = (n, cur) => cur === 'USD' ? fmtU(n) : fmt(n) + ' ARS';
 // Equivalente en USD de un movimiento (null si está en ARS sin cotización).
 export const usdOf = x => x.currency === 'USD' ? (x.amount||0) : (x.rate ? (x.amount||0) / x.rate : null);
 // Celda "monto original + equivalente USD" para tablas.
-export const amtCell = (x, fb) => fmtAmt(x.amount, x.currency) + (x.currency === 'USD' ? '' : (x.usd != null ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU(x.usd) + ' @ ' + x.rate + '</div>' : (fb ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU((x.amount||0)/fb) + ' <span title="a dólar de referencia">(ref. ' + fb + ')</span></div>' : '<div style="font-size:11px;color:var(--amber)">sin cotización</div>')));
+export const amtCell = (x, fb, quiet) => fmtAmt(x.amount, x.currency) + (x.currency === 'USD' ? '' : (x.usd != null ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU(x.usd) + ' @ ' + x.rate + '</div>' : (fb ? '<div style="font-size:11px;color:var(--text3)">≈ ' + fmtU((x.amount||0)/fb) + ' <span title="a dólar de referencia, solo orientativo">(ref. ' + fb + ')</span></div>' : (quiet ? '' : '<div style="font-size:11px;color:var(--amber)">sin cotización</div>'))));
 // Dólar de referencia para saldos pendientes: el configurado, o la última cotización cargada.
 export const refRate = () => (D.settings && D.settings.refRate) || lastRate() || 0;
 // Ejecución de un presupuesto: pagado (a dólar histórico) + saldo (a dólar de referencia).
